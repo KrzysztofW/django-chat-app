@@ -1,4 +1,4 @@
-{% load static %}
+{% load static %}{{ username }}
 <ul>
   {% for msg in msgs %}
   <li class="{% if request.user.id == msg.0 %}sent{% else %}replies{% endif %}">

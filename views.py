@@ -35,6 +35,7 @@ def get_msgs_view(request):
         (user.id, 'reply from ' + user.first_name),
     ]
     context = {
+        'username': user.first_name + ' ' + user.last_name,
         'msgs': msgs
     }
     return render(request, 'chat/ajax_msgs.html', context)

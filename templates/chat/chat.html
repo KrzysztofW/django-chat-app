@@ -63,7 +63,7 @@
   <div class="content">
     <div class="contact-profile">
       <img src="{% static 'chat/default-avatar.jpg' %}" alt="" />
-      <p style="line-height:60px;">Harvey Specter</p>
+      <p style="line-height:60px;" id="contact_name_id"></p>
       <!--div class="social-media">
 	<i class="fab fa-facebook-f" aria-hidden="true"></i>
 	<i class="fab fa-twitter" aria-hidden="true"></i>
@@ -156,7 +156,12 @@
      },
      success: function(data) {
        var msg_box = document.getElementById('message_box_id');
+       var contact_name = document.getElementById('contact_name_id');
+       var delim = data.lastIndexOf("<ul>") - 1;
+       var username = data.substring(0, delim);
 
+       contact_name.innerHTML = username;
+       data = data.substring(delim + 1);
        msg_box.innerHTML = data;
      }
    });
