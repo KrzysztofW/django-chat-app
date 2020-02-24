@@ -18,3 +18,23 @@ def chat_view(request):
         'title': _('Chat'),
     }
     return render(request, 'chat/chat.html', context)
+
+def get_msgs_view(request):
+    uid = request.GET.get('uid')
+
+    if uid is None:
+        return render(request, 'chat/ajax_msgs.html', { 'msgs': None })
+
+    try:
+        user = User.objects.get(id=uid)
+    except:
+        return render(request, 'chat/ajax_msgs.html', { 'msgs': None })
+
+    msgs = [
+        (request.user.id, 'message from ' + request.user.first_name),
+        (user.id, 'reply from ' + user.first_name),
+    ]
+    context = {
+        'msgs': msgs
+    }
+    return render(request, 'chat/ajax_msgs.html', context)

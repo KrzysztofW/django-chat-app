@@ -38,13 +38,13 @@
       <input type="text" placeholder="Search contacts..." />
     </div>
     <div id="contacts">
-      <ul class="nolist">
+      <ul class="nolist" id="contact_list_id">
 	{% for u in users %}
 	{% if u.id != request.user.id %}
-	<li class="contact active">
+	<li class="contact" onclick="set_active(this, {{ u.id }})">
 	  <div class="wrap">
 	    <span class="contact-status {{ u.get_chat_css_status }}"></span>
-	    <img src="{% static 'chat/default-avatar.jpg' %}" alt="" />
+	    <img src="{% static 'chat/default-avatar.jpg' %}" alt="{{ u.first_name }} {{ u.last_name }}" />
 	    <div class="meta">
 	      <p class="name">{{ u.first_name }} {{ u.last_name }}</p>
 	      <!--p class="preview"></p-->
@@ -70,17 +70,7 @@
 	<i class="fab fa-instagram" aria-hidden="true"></i>
       </div-->
     </div>
-    <div class="messages">
-      <ul>
-	<li class="sent">
-	  <img src="{% static 'chat/default-avatar.jpg' %}" alt="" />
-	  <p>What are you talking about? You do what they say or they shoot you.</p>
-	</li>
-	<li class="replies">
-	  <img src="{% static 'chat/default-avatar.jpg' %}" alt="" />
-	  <p>Wrong. You take the gun, or you pull out a bigger one. Or, you call their bluff. Or, you do any one of a hundred and forty six other things.</p>
-	</li>
-      </ul>
+    <div class="messages" id="message_box_id">
     </div>
     <div class="message-input">
       <div class="wrap">
@@ -96,59 +86,81 @@
 {% block javascript %}
 <script >$(".messages").animate({ scrollTop: $(document).height() }, "fast");
 
-$("#profile-img").click(function() {
-	$("#status-options").toggleClass("active");
-});
+ $("#profile-img").click(function() {
+   $("#status-options").toggleClass("active");
+ });
 
-$(".expand-button").click(function() {
-  $("#profile").toggleClass("expanded");
-	$("#contacts").toggleClass("expanded");
-});
+ $(".expand-button").click(function() {
+   $("#profile").toggleClass("expanded");
+   $("#contacts").toggleClass("expanded");
+ });
 
-$("#status-options ul li").click(function() {
-	$("#profile-img").removeClass();
-	$("#status-online").removeClass("active");
-	$("#status-away").removeClass("active");
-	$("#status-busy").removeClass("active");
-	$("#status-offline").removeClass("active");
-	$(this).addClass("active");
+ $("#status-options ul li").click(function() {
+   $("#profile-img").removeClass();
+   $("#status-online").removeClass("active");
+   $("#status-away").removeClass("active");
+   $("#status-busy").removeClass("active");
+   $("#status-offline").removeClass("active");
+   $(this).addClass("active");
 
-	if($("#status-online").hasClass("active")) {
-		$("#profile-img").addClass("online");
-	} else if ($("#status-away").hasClass("active")) {
-		$("#profile-img").addClass("away");
-	} else if ($("#status-busy").hasClass("active")) {
-		$("#profile-img").addClass("busy");
-	} else if ($("#status-offline").hasClass("active")) {
-		$("#profile-img").addClass("offline");
-	} else {
-		$("#profile-img").removeClass();
-	};
+   if($("#status-online").hasClass("active")) {
+     $("#profile-img").addClass("online");
+   } else if ($("#status-away").hasClass("active")) {
+     $("#profile-img").addClass("away");
+   } else if ($("#status-busy").hasClass("active")) {
+     $("#profile-img").addClass("busy");
+   } else if ($("#status-offline").hasClass("active")) {
+     $("#profile-img").addClass("offline");
+   } else {
+     $("#profile-img").removeClass();
+   };
 
-	$("#status-options").removeClass("active");
-});
+   $("#status-options").removeClass("active");
+ });
 
-function newMessage() {
-	message = $(".message-input input").val();
-	if($.trim(message) == '') {
-		return false;
-	}
-	$('<li class="sent"><img src="{% static 'chat/default-avatar.jpg' %}" alt="" /><p>' + message + '</p></li>').appendTo($('.messages ul'));
-	$('.message-input input').val(null);
-	$('.contact.active .preview').html('<span>You: </span>' + message);
-	$(".messages").animate({ scrollTop: $(document).height() }, "fast");
-};
+ function newMessage() {
+   message = $(".message-input input").val();
+   message = message.replace(/<[^>]*>?/gm, '');
 
-$('.submit').click(function() {
-  newMessage();
-});
+   if($.trim(message) == '') {
+     return false;
+   }
+   $('<li class="sent"><img src="{% static 'chat/default-avatar.jpg' %}" alt="" /><p>' + message + '</p></li>').appendTo($('.messages ul'));
+   $('.message-input input').val(null);
+   $('.contact.active .preview').html('<span>You: </span>' + message);
+   $(".messages").animate({ scrollTop: $(document).height() }, "fast");
+ };
 
-$(window).on('keydown', function(e) {
-  if (e.which == 13) {
-    newMessage();
-    return false;
-  }
-});
-//# sourceURL=pen.js
+ $('.submit').click(function() {
+   newMessage();
+ });
+
+ $(window).on('keydown', function(e) {
+   if (e.which == 13) {
+     newMessage();
+     return false;
+   }
+ });
+
+ function set_active(elem, uid)
+ {
+   $('li').each(function(i) {
+     $(this).removeClass('active');
+   });
+   elem.classList.add('active');
+
+   $.ajax({
+     url: "{% url 'chat-load-msgs' %}",
+     data: {
+       'uid': uid
+     },
+     success: function(data) {
+       var msg_box = document.getElementById('message_box_id');
+
+       msg_box.innerHTML = data;
+     }
+   });
+ }
+
 </script>
 {% endblock %}
