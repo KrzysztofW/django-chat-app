@@ -3,6 +3,7 @@
 {% load crispy_forms_tags %}
 {% load i18n %}
 {% load l10n %}
+{% load custom_tags %}
 
 {% block content %}
 <div id="frame">
@@ -11,23 +12,25 @@
       <div class="wrap">
 	<img id="profile-img" src="{% static 'chat/default-avatar.jpg' %}" class="online" alt="" />
 	<p>{{ request.user.first_name }} {{ request.user.last_name }}</p>
-	<i class="fa fa-chevron-down expand-button" aria-hidden="true"></i>
+	<!-- i class="fa fa-chevron-down expand-button" aria-hidden="true"></i-->
 	<div id="status-options">
-	  <ul>
-	    <li id="status-online" class="active"><span class="status-circle"></span> <p>Online</p></li>
-	    <li id="status-away"><span class="status-circle"></span> <p>Away</p></li>
-	    <li id="status-busy"><span class="status-circle"></span> <p>Busy</p></li>
-	    <li id="status-offline"><span class="status-circle"></span> <p>Offline</p></li>
+	  <ul class="nolist">
+	    {% chat_get_statuses as statuses %}
+	    {% for s in statuses %}
+	    {% chat_convert_status s.0 as css_s %}
+	    <li id="status-{{ css_s }}" class="active">
+	      <span class="status-circle"></span> <p>{{ s.1 }}</p></li>
+	    {% endfor %}
 	  </ul>
 	</div>
-	<div id="expanded">
+	<!--div id="expanded">
 	  <label for="twitter"><i class="fab fa-facebook-f" aria-hidden="true"></i></label>
 	  <input name="twitter" type="text" value="mikeross" />
 	  <label for="twitter"><i class="fab fa-twitter" aria-hidden="true"></i></label>
 	  <input name="twitter" type="text" value="ross81" />
 	  <label for="twitter"><i class="fab fa-instagram" aria-hidden="true"></i></label>
 	  <input name="twitter" type="text" value="mike.ross" />
-	</div>
+	</div-->
       </div>
     </div>
     <div id="search">
@@ -35,18 +38,20 @@
       <input type="text" placeholder="Search contacts..." />
     </div>
     <div id="contacts">
-      <ul>
+      <ul class="nolist">
 	{% for u in users %}
+	{% if u.id != request.user.id %}
 	<li class="contact active">
 	  <div class="wrap">
 	    <span class="contact-status {{ u.get_chat_css_status }}"></span>
 	    <img src="{% static 'chat/default-avatar.jpg' %}" alt="" />
 	    <div class="meta">
 	      <p class="name">{{ u.first_name }} {{ u.last_name }}</p>
-	      <!--p class="preview">You just got LITT up, Mike.</p-->
+	      <!--p class="preview"></p-->
 	    </div>
 	  </div>
 	</li>
+	{% endif %}
 	{% endfor %}
       </ul>
     </div>
@@ -57,22 +62,22 @@
   </div>
   <div class="content">
     <div class="contact-profile">
-      <img src="http://emilcarlsson.se/assets/harveyspecter.png" alt="" />
-      <p>Harvey Specter</p>
-      <div class="social-media">
+      <img src="{% static 'chat/default-avatar.jpg' %}" alt="" />
+      <p style="line-height:60px;">Harvey Specter</p>
+      <!--div class="social-media">
 	<i class="fab fa-facebook-f" aria-hidden="true"></i>
 	<i class="fab fa-twitter" aria-hidden="true"></i>
 	<i class="fab fa-instagram" aria-hidden="true"></i>
-      </div>
+      </div-->
     </div>
     <div class="messages">
       <ul>
 	<li class="sent">
-	  <img src="http://emilcarlsson.se/assets/mikeross.png" alt="" />
+	  <img src="{% static 'chat/default-avatar.jpg' %}" alt="" />
 	  <p>What are you talking about? You do what they say or they shoot you.</p>
 	</li>
 	<li class="replies">
-	  <img src="http://emilcarlsson.se/assets/harveyspecter.png" alt="" />
+	  <img src="{% static 'chat/default-avatar.jpg' %}" alt="" />
 	  <p>Wrong. You take the gun, or you pull out a bigger one. Or, you call their bluff. Or, you do any one of a hundred and forty six other things.</p>
 	</li>
       </ul>
@@ -80,7 +85,7 @@
     <div class="message-input">
       <div class="wrap">
 	<input type="text" placeholder="{% trans 'Write your message...' %}" />
-	<i class="fa fa-paperclip attachment" aria-hidden="true"></i>
+	<!--i class="fa fa-paperclip attachment" aria-hidden="true"></i-->
 	<button class="submit"><i class="fa fa-paper-plane" aria-hidden="true"></i></button>
       </div>
     </div>
@@ -128,7 +133,7 @@ function newMessage() {
 	if($.trim(message) == '') {
 		return false;
 	}
-	$('<li class="sent"><img src="http://emilcarlsson.se/assets/mikeross.png" alt="" /><p>' + message + '</p></li>').appendTo($('.messages ul'));
+	$('<li class="sent"><img src="{% static 'chat/default-avatar.jpg' %}" alt="" /><p>' + message + '</p></li>').appendTo($('.messages ul'));
 	$('.message-input input').val(null);
 	$('.contact.active .preview').html('<span>You: </span>' + message);
 	$(".messages").animate({ scrollTop: $(document).height() }, "fast");
