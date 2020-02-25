@@ -12,6 +12,7 @@ from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
+@login_required
 def chat_view(request):
     context = {
         'users': user_models.get_local_user_queryset(),
@@ -19,6 +20,7 @@ def chat_view(request):
     }
     return render(request, 'chat/chat.html', context)
 
+@login_required
 def get_msgs_view(request):
     uid = request.GET.get('uid')
 
