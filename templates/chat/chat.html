@@ -86,7 +86,11 @@
 {% endblock %}
 
 {% block javascript %}
-<script >$(".messages").animate({ scrollTop: $(document).height() }, "fast");
+ <script>
+
+ var cur_tuid = '';
+ var cur_cuid = '';
+ var msg_box = document.getElementById('message_box_id');
 
  $("#profile-img").click(function() {
    $("#status-options").toggleClass("active");
@@ -127,10 +131,27 @@
    if($.trim(message) == '') {
      return false;
    }
-   $('<li class="sent"><img src="{% static 'chat/default-avatar.jpg' %}" alt="" /><p style="word-break: break-all;">' + message + '</p></li>').appendTo($('.messages ul'));
-   $('.message-input input').val(null);
-   $('.contact.active .preview').html('<span>You: </span>' + message);
-   $(".messages").animate({ scrollTop: $(document).height() }, "fast");
+   if (cur_tuid == '') {
+     return;
+   }
+
+   $.ajax({
+     url: "{% url 'chat-send-msg' %}",
+     data: {
+       'fuid': {{ request.user.id }},
+       'tuid': cur_tuid,
+       'msg': encodeURI(message)
+     },
+     success: function(data) {
+       if (data == '-1') {
+	 alert("failed sending message");
+	 return;
+       }
+       $('<li class="sent"><div><img src="{% static 'chat/default-avatar.jpg' %}" alt="" /><div class="msg_div"><b>{{ request.user.first_name }} {{ request.user.last_name }}</b> <span class="msg_span">' + data + '</span></div></div><br><p class="msg_p">' + message + '</p></li>').appendTo($('.messages ul'));
+       $('.message-input input').val(null);
+       msg_box.scrollTop = msg_box.scrollHeight;
+     }
+   });
  };
 
  $('.submit').click(function() {
@@ -151,20 +172,22 @@
    });
    elem.classList.add('active');
 
+   cur_tuid = uid;
+
    $.ajax({
      url: "{% url 'chat-load-msgs' %}",
      data: {
        'uid': uid
      },
      success: function(data) {
-       var msg_box = document.getElementById('message_box_id');
        var contact_name = document.getElementById('contact_name_id');
        var delim = data.lastIndexOf("<ul>") - 1;
        var username = data.substring(0, delim);
 
-       contact_name.innerHTML = username;
+       contact_name.innerHTML = "{% trans 'Conversation with ' %}" + username;
        data = data.substring(delim + 1);
-       msg_box.innerHTML = data;
+       msg_box.innerHTML = decodeURI(data);
+       msg_box.scrollTop = msg_box.scrollHeight;
      }
    });
  }

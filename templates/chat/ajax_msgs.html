@@ -1,9 +1,14 @@
 {% load static %}{{ username }}
 <ul>
   {% for msg in msgs %}
-  <li class="{% if request.user.id == msg.0 %}sent{% else %}replies{% endif %}">
-    <img src="{% static 'chat/default-avatar.jpg' %}" alt="" />
-    <p style="word-break: break-all;">{{ msg.1 }}</p>
+  <li class="{% if request.user.id == msg.from_user.id %}sent{% else %}replies{% endif %}">
+    <div>
+      <img src="{% static 'chat/default-avatar.jpg' %}" alt="" />
+      <div class="msg_div">
+	<b>{{ msg.from_user.first_name }} {{ msg.from_user.last_name }}</b>
+	<span class="msg_span">{{ msg.date }}</span></div>
+    </div><br>
+    <p class="msg_p">{{ msg.text }}</p>
   </li>
   {% endfor %}
 </ul>

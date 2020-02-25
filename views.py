@@ -6,7 +6,8 @@ from django import http
 from django.utils.html import quote, unquote
 from django.urls import reverse_lazy
 from django.conf import settings
-import os, pdb, mimetypes, subprocess
+import os, pdb, mimetypes, subprocess, pdb
+from . import models as chat_models
 from users import models as user_models
 from django.contrib.auth import get_user_model
 
@@ -32,12 +33,51 @@ def get_msgs_view(request):
     except:
         return render(request, 'chat/ajax_msgs.html', { 'msgs': None })
 
-    msgs = [
-        (request.user.id, 'message from ' + request.user.first_name),
-        (user.id, 'reply from ' + user.first_name),
-    ]
+    msgs = chat_models.Message.objects.filter(from_user=user, to_user=request.user).all()
+    msgs = (chat_models.Message.objects.filter(from_user=user, to_user=request.user)|
+            chat_models.Message.objects.filter(from_user=request.user, to_user=user)).order_by('date')
     context = {
         'username': user.first_name + ' ' + user.last_name,
         'msgs': msgs
     }
     return render(request, 'chat/ajax_msgs.html', context)
+
+@login_required
+def send_msg_view(request):
+    fuid = request.GET.get('fuid')
+    tuid = request.GET.get('tuid')
+    cuid = request.GET.get('cuid')
+    msg = request.GET.get('msg')
+
+    if msg is None or msg == '' or fuid is None or (tuid is None and cuid is None):
+        return http.HttpResponse('-1')
+
+    try:
+        fuid = User.objects.get(id=fuid)
+    except:
+        return http.HttpResponse('-1')
+
+    """check if the message is really from the logged-in user"""
+    if fuid.id != request.user.id:
+        return http.HttpResponse('-1')
+
+    message = chat_models.Message()
+    message.text = msg
+    message.from_user = fuid
+    if tuid is not None:
+        try:
+            tuid = User.objects.get(id=tuid)
+        except:
+            return http.HttpResponse('-1')
+        message.to_user = tuid
+    elif cuid is not None:
+        try:
+            cuid = chat_models.Channel.get(id=cuid)
+        except:
+            return http.HttpResponse('-1')
+        message.channel = cuid
+    else:
+        return http.HttpResponse('-1')
+
+    message.save()
+    return render(request, 'chat/ajax_ack_msg.html', { 'msg': message })
