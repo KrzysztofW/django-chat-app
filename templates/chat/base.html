@@ -1,0 +1,24 @@
+{% load i18n %}{% load static %}{% get_current_language as LANGUAGE_CODE %}
+{% load custom_tags %}
+{% is_local_user request.user as is_local %}
+{% if is_local %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}">
+  {% include "lgc/header.html" %}
+  <body>
+    {% include 'lgc/messages.html' %}
+    <div class="lgc-logo-bg">
+      <img id="kw-logo" src="/static/lgc/images/kw-logo-left.png">
+      <img id="kw-logo" align="right" src="/static/lgc/images/kw-logo-right.png">
+    </div>
+    {% block content %}{% endblock %}
+    {% include 'lgc/footer.html' %}
+    {% block javascript %}{% endblock %}
+  </body>
+</html>
+{% else %}
+<!DOCTYPE html>
+<html>
+  <body>Forbidden</body>
+</html>
+{% endif %}
