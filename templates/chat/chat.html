@@ -19,7 +19,9 @@
 	    {% for s in statuses %}
 	    {% chat_convert_status s.0 as css_s %}
 	    <li id="status-{{ css_s }}" class="active">
-	      <span class="status-circle"></span> <p>{{ s.1 }}</p></li>
+	      <span class="status-circle">
+		<div id="status_win">{{ s.1 }}</div></span>
+	    </li>
 	    {% endfor %}
 	  </ul>
 	</div>
@@ -125,7 +127,7 @@
    if($.trim(message) == '') {
      return false;
    }
-   $('<li class="sent"><img src="{% static 'chat/default-avatar.jpg' %}" alt="" /><p>' + message + '</p></li>').appendTo($('.messages ul'));
+   $('<li class="sent"><img src="{% static 'chat/default-avatar.jpg' %}" alt="" /><p style="word-break: break-all;">' + message + '</p></li>').appendTo($('.messages ul'));
    $('.message-input input').val(null);
    $('.contact.active .preview').html('<span>You: </span>' + message);
    $(".messages").animate({ scrollTop: $(document).height() }, "fast");

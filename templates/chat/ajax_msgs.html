@@ -3,7 +3,7 @@
   {% for msg in msgs %}
   <li class="{% if request.user.id == msg.0 %}sent{% else %}replies{% endif %}">
     <img src="{% static 'chat/default-avatar.jpg' %}" alt="" />
-    <p>{{ msg.1 }}</p>
+    <p style="word-break: break-all;">{{ msg.1 }}</p>
   </li>
   {% endfor %}
 </ul>
