@@ -102,6 +102,7 @@
 #frame #sidepanel #profile .wrap p {
   float: left;
   margin-left: 15px;
+  margin-top: 10px;
 }
 @media screen and (max-width: 735px) {
   #frame #sidepanel #profile .wrap p {
