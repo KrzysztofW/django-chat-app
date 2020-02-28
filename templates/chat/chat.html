@@ -4,6 +4,7 @@
 {% load i18n %}
 {% load l10n %}
 {% load custom_tags %}
+{% get_current_language as LANGUAGE_CODE %}
 
 {% block content %}
 <div id="frame">
@@ -15,14 +16,22 @@
 	<!-- i class="fa fa-chevron-down expand-button" aria-hidden="true"></i-->
 	<div id="status-options">
 	  <ul class="nolist">
-	    {% chat_get_statuses as statuses %}
-	    {% for s in statuses %}
-	    {% chat_convert_status s.0 as css_s %}
-	    <li id="status-{{ css_s }}" class="active">
+	    <li id="status-away" class="active">
 	      <span class="status-circle">
-		<div id="status_win">{{ s.1 }}</div></span>
+		<div id="status_win">{% trans 'Away' %}</div></span>
 	    </li>
-	    {% endfor %}
+	    <li id="status-busy" class="active">
+	      <span class="status-circle">
+		<div id="status_win">{% trans 'Busy' %}</div></span>
+	    </li>
+	    <li id="status-online" class="active">
+	      <span class="status-circle">
+		<div id="status_win">{% trans 'Online' %}</div></span>
+	    </li>
+	    <li id="status-offline" class="active">
+	      <span class="status-circle">
+		<div id="status_win">{% trans 'Offline' %}</div></span>
+	    </li>
 	  </ul>
 	</div>
 	<!--div id="expanded">
@@ -45,10 +54,10 @@
 	{% if u.id != request.user.id %}
 	<li class="contact" onclick="set_active(this, {{ u.id }})">
 	  <div class="wrap">
-	    <span class="contact-status {{ u.get_chat_css_status }}"></span>
-	    <img src="{% static 'chat/default-avatar.jpg' %}" alt="{{ u.first_name }} {{ u.last_name }}" />
+	    <span id="user_id_{{ u.id }}" class="contact-status {{ u.chat_status }}"></span>
+	    <img id="user_img_{{ u.id }}" src="{% static 'chat/default-avatar.jpg' %}" alt="{{ u.first_name }} {{ u.last_name }}" />
 	    <div class="meta">
-	      <p class="name">{{ u.first_name }} {{ u.last_name }}</p>
+	      <p id="user_name_{{ u.id }}" class="name">{{ u.first_name }} {{ u.last_name }}</p>
 	      <!--p class="preview"></p-->
 	    </div>
 	  </div>
@@ -73,6 +82,12 @@
       </div-->
     </div>
     <div class="messages" id="message_box_id">
+      <ul>
+	<li class="sent">
+	  <img src="{% static 'chat/default-avatar.jpg' %}" alt="" />
+	</li>
+      </ul>
+
     </div>
     <div class="message-input">
       <div class="wrap">
@@ -91,105 +106,231 @@
  var cur_tuid = '';
  var cur_cuid = '';
  var msg_box = document.getElementById('message_box_id');
+ var ws_scheme = window.location.protocol == "https:" ? "wss" : "ws";
+ var chatSocket = new ReconnectingWebSocket(ws_scheme + '://' +
+					    window.location.host +
+					    '/ws/chat');
+
+ document.addEventListener('DOMContentLoaded', function() {
+     if (!Notification) {
+	 alert('Desktop notifications not available in your browser. Try Chromium.');
+	 return;
+     }
+
+     if (Notification.permission !== 'granted')
+	 Notification.requestPermission();
+ });
+
+
+ function notifyMe(user_name, img, msg) {
+     if (Notification.permission !== 'granted')
+	 Notification.requestPermission();
+     else {
+	 var notification = new Notification('Notification title', {
+	     icon: 'http://cdn.sstatic.net/stackexchange/img/logos/so/so-icon.png',
+	     body: 'Hey there! You\'ve been notified!',
+	 });
+	 notification.onclick = function() {
+	     window.open('http://stackoverflow.com/a/13328397/1269037');
+	 };
+     }
+ }
+
+ var month = new Array();
+ {% if LANGUAGE_CODE == 'fr' %}
+ month[0] = "janvier";
+ month[1] = "février";
+ month[2] = "mars";
+ month[3] = "avril";
+ month[4] = "mai";
+ month[5] = "juin";
+ month[6] = "juillet";
+ month[7] = "août";
+ month[8] = "septembre";
+ month[9] = "octobre";
+ month[10] = "novembre";
+ month[11] = "décembre";
+ {% else %}
+ month[0] = "Jan.";
+ month[1] = "Feb.";
+ month[2] = "March";
+ month[3] = "April";
+ month[4] = "May";
+ month[5] = "June";
+ month[6] = "July";
+ month[7] = "August";
+ month[8] = "Sep.";
+ month[9] = "Oct.";
+ month[10] = "Nov.";
+ month[11] = "Dec.";
+ {% endif %}
+
+ function addZero(i) {
+     if (i < 10) {
+	 i = "0" + i;
+     }
+     return i;
+ }
+
+ function get_current_date()
+ {
+     var today = new Date();
+     var n = month[today.getMonth()];
+     var h = today.getHours();
+     var ampm = '';
+
+     {% if LANGUAGE_CODE == 'en' %}
+     if (h > 12) {
+	 ampm = ' p.m.';
+	 h -= 12;
+     } else
+	 ampm = ' a.m.';
+     return n + ' ' + (today.getDay() + 1) + ', ' + today.getFullYear() + ', ' + h + ':' + addZero(today.getMinutes()) + ampm;
+     {% else %}
+     return (today.getDay() + 1) + ' ' + n + ' ' + today.getFullYear() + ' ' + addZero(h) + ':' + addZero(today.getMinutes());
+     {% endif %}
+ }
+
+ chatSocket.onmessage = function(e) {
+     var data = JSON.parse(e.data);
+     var message = data['message'];
+
+     if (typeof data['connect'] !== 'undefined') {
+	 var id = '#user_id_' + data['connect']
+	 var status = $(id);
+
+	 if (typeof status.val() === 'undefined')
+	     return;
+	 if (typeof data['status'] === 'undefined')
+	     return;
+
+	 status.removeClass('offline');
+	 status.addClass(data['status']);
+	 return;
+     }
+     if (typeof data['disconnect'] !== 'undefined') {
+	 var id = '#user_id_' + data['disconnect'];
+	 var status = $(id);
+
+	 if (typeof status.val() === 'undefined')
+	     return;
+
+	 status.attr('class', 'contact-status offline');
+	 return;
+     }
+     if (typeof data['uid'] === 'undefined')
+	 return;
+
+     var id = '#user_name_' + cur_tuid;
+     var user_name = $(id);
+
+     if (typeof user_name.val() === 'undefined')
+	 return;
+
+     id = '#user_img_' + cur_tuid;
+     var user_img = $(id);
+
+     if (typeof user_img.val() === 'undefined')
+	 return;
+
+     if (cur_tuid != data['uid']) {
+	 notifyMe(user_name, user_img, data['message']);
+	 return;
+     }
+     $('<li class="replies"><div><img src="' + user_img.attr('src') + '"><div class="msg_div"><b>' + user_name.text() + '</b> <span class="msg_span">' + get_current_date() + '</span></div></div><br><p class="msg_p">' + data['message'] + '</p></li>').appendTo($('.messages ul'));
+     $('.message-input input').val(null);
+     msg_box.scrollTop = msg_box.scrollHeight;
+ };
 
  $("#profile-img").click(function() {
-   $("#status-options").toggleClass("active");
+     $("#status-options").toggleClass("active");
  });
 
  $(".expand-button").click(function() {
-   $("#profile").toggleClass("expanded");
-   $("#contacts").toggleClass("expanded");
+     $("#profile").toggleClass("expanded");
+     $("#contacts").toggleClass("expanded");
  });
 
  $("#status-options ul li").click(function() {
-   $("#profile-img").removeClass();
-   $("#status-online").removeClass("active");
-   $("#status-away").removeClass("active");
-   $("#status-busy").removeClass("active");
-   $("#status-offline").removeClass("active");
-   $(this).addClass("active");
-
-   if($("#status-online").hasClass("active")) {
-     $("#profile-img").addClass("online");
-   } else if ($("#status-away").hasClass("active")) {
-     $("#profile-img").addClass("away");
-   } else if ($("#status-busy").hasClass("active")) {
-     $("#profile-img").addClass("busy");
-   } else if ($("#status-offline").hasClass("active")) {
-     $("#profile-img").addClass("offline");
-   } else {
      $("#profile-img").removeClass();
-   };
+     $("#status-online").removeClass("active");
+     $("#status-away").removeClass("active");
+     $("#status-busy").removeClass("active");
+     $("#status-offline").removeClass("active");
+     $(this).addClass("active");
 
-   $("#status-options").removeClass("active");
+     if($("#status-online").hasClass("active")) {
+	 $("#profile-img").addClass("online");
+     } else if ($("#status-away").hasClass("active")) {
+	 $("#profile-img").addClass("away");
+     } else if ($("#status-busy").hasClass("active")) {
+	 $("#profile-img").addClass("busy");
+     } else if ($("#status-offline").hasClass("active")) {
+	 $("#profile-img").addClass("offline");
+     } else {
+	 $("#profile-img").removeClass();
+     };
+
+     $("#status-options").removeClass("active");
  });
 
  function newMessage() {
-   message = $(".message-input input").val();
-   message = message.replace(/<[^>]*>?/gm, '');
+     message = $(".message-input input").val();
+     message = message.replace(/<[^>]*>?/gm, '');
 
-   if($.trim(message) == '') {
-     return false;
-   }
-   if (cur_tuid == '') {
-     return;
-   }
-
-   $.ajax({
-     url: "{% url 'chat-send-msg' %}",
-     data: {
-       'fuid': {{ request.user.id }},
-       'tuid': cur_tuid,
-       'msg': encodeURI(message)
-     },
-     success: function(data) {
-       if (data == '-1') {
-	 alert("failed sending message");
-	 return;
-       }
-       $('<li class="sent"><div><img src="{% static 'chat/default-avatar.jpg' %}" alt="" /><div class="msg_div"><b>{{ request.user.first_name }} {{ request.user.last_name }}</b> <span class="msg_span">' + data + '</span></div></div><br><p class="msg_p">' + message + '</p></li>').appendTo($('.messages ul'));
-       $('.message-input input').val(null);
-       msg_box.scrollTop = msg_box.scrollHeight;
+     if($.trim(message) == '') {
+	 return false;
      }
-   });
- };
+     if (cur_tuid == '') {
+	 return;
+     }
+
+     chatSocket.send(JSON.stringify({
+	 'fuid': {{ request.user.id }},
+	 'tuid': cur_tuid,
+	 'msg': encodeURI(message)
+     }));
+     $('<li class="sent"><div><img src="{% static 'chat/default-avatar.jpg' %}" alt="" /><div class="msg_div"><b>{{ request.user.first_name }} {{ request.user.last_name }}</b> <span class="msg_span">' + get_current_date() + '</span></div></div><br><p class="msg_p">' + message + '</p></li>').appendTo($('.messages ul'));
+     $('.message-input input').val(null);
+     msg_box.scrollTop = msg_box.scrollHeight;
+ }
 
  $('.submit').click(function() {
-   newMessage();
+     newMessage();
  });
 
  $(window).on('keydown', function(e) {
-   if (e.which == 13) {
-     newMessage();
-     return false;
-   }
+     if (e.which == 13) {
+	 newMessage();
+	 return false;
+     }
  });
 
  function set_active(elem, uid)
  {
-   $('li').each(function(i) {
-     $(this).removeClass('active');
-   });
-   elem.classList.add('active');
+     $('li').each(function(i) {
+	 $(this).removeClass('active');
+     });
+     elem.classList.add('active');
 
-   cur_tuid = uid;
+     cur_tuid = uid;
 
-   $.ajax({
-     url: "{% url 'chat-load-msgs' %}",
-     data: {
-       'uid': uid
-     },
-     success: function(data) {
-       var contact_name = document.getElementById('contact_name_id');
-       var delim = data.lastIndexOf("<ul>") - 1;
-       var username = data.substring(0, delim);
+     $.ajax({
+	 url: "{% url 'chat-load-msgs' %}",
+	 data: {
+	     'uid': uid
+	 },
+	 success: function(data) {
+	     var contact_name = document.getElementById('contact_name_id');
+	     var delim = data.lastIndexOf("<ul>") - 1;
+	     var username = data.substring(0, delim);
 
-       contact_name.innerHTML = "{% trans 'Conversation with ' %}" + username;
-       data = data.substring(delim + 1);
-       msg_box.innerHTML = decodeURI(data);
-       msg_box.scrollTop = msg_box.scrollHeight;
-     }
-   });
+	     contact_name.innerHTML = "{% trans 'Conversation with ' %}" + username;
+	     data = data.substring(delim + 1);
+	     msg_box.innerHTML = decodeURI(data);
+	     msg_box.scrollTop = msg_box.scrollHeight;
+	 }
+     });
  }
 
 </script>

@@ -10,13 +10,23 @@ import os, pdb, mimetypes, subprocess, pdb
 from . import models as chat_models
 from users import models as user_models
 from django.contrib.auth import get_user_model
+from . consumers import connected_users
 
 User = get_user_model()
 
 @login_required
 def chat_view(request):
+    users = user_models.get_local_user_queryset().all()
+
+    for u in users:
+        if u.id in connected_users:
+            u.chat_status = 'online'
+        else:
+            u.chat_status = 'offline'
+
     context = {
-        'users': user_models.get_local_user_queryset(),
+        'users': users,
+        'connected_users': connected_users,
         'title': _('Chat'),
     }
     return render(request, 'chat/chat.html', context)
