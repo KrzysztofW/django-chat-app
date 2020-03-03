@@ -1,4 +1,3 @@
-# chat/consumers.py
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.exceptions import DenyConnection
 from django.utils import timezone
@@ -10,8 +9,21 @@ from . import models as chat_models
 
 User = get_user_model()
 
-connected_users = {}
+connected_users = [] # it must be a list to track users connected multiple times
 CONNECTED_USR_GRP = 'connected-users'
+
+def get_connected_user(uid):
+    for u in connected_users:
+        if uid == u[0].id:
+            return u
+    return None, None
+
+def remove_connected_user(uid):
+    for i in range(len(connected_users)):
+        if connected_users[i][0].id == uid:
+            del connected_users[i]
+            return
+
 
 class ChatChannel(AsyncWebsocketConsumer):
     @database_sync_to_async
@@ -29,7 +41,7 @@ class ChatChannel(AsyncWebsocketConsumer):
             raise DenyConnection('invalid user')
 
         uid = self.scope['user'].id
-        connected_users[uid] = (self.scope['user'], self.channel_name)
+        connected_users.append((self.scope['user'], self.channel_name))
 
         await self.channel_layer.group_send(
             CONNECTED_USR_GRP, {
@@ -49,7 +61,7 @@ class ChatChannel(AsyncWebsocketConsumer):
         self.channel_layer.group_discard(CONNECTED_USR_GRP,
                                          self.channel_name)
         uid = self.scope['user'].id
-        del connected_users[uid]
+        remove_connected_user(uid)
 
         await self.channel_layer.group_send(
             CONNECTED_USR_GRP, {
@@ -61,8 +73,7 @@ class ChatChannel(AsyncWebsocketConsumer):
     async def receive(self, text_data):
         if not self.scope['user'].is_authenticated:
             return
-        print('from: ', self.scope['user'].first_name, self.scope['user'].last_name)
-        print(text_data)
+
         try:
             text_data_json = json.loads(text_data)
             message = text_data_json['msg']
@@ -81,9 +92,8 @@ class ChatChannel(AsyncWebsocketConsumer):
         msg_obj.to_user = user
         await self.save_object(msg_obj)
 
-        try:
-            user, channel_name = connected_users[tuid]
-        except:
+        user, channel_name = get_connected_user(tuid)
+        if user == None:
             return
         channel_layer = get_channel_layer()
         await channel_layer.send(channel_name, {
