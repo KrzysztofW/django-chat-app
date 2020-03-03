@@ -378,6 +378,7 @@
   }
 }
 #frame #sidepanel #contacts ul li.contact .wrap span {
+  box-sizing: unset;
   position: absolute;
   left: 0;
   margin: -2px 0 0 -2px;
