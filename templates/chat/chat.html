@@ -11,7 +11,7 @@
   <div id="sidepanel">
     <div id="profile">
       <div class="wrap">
-	<img id="profile-img" src="{% static 'chat/default-avatar.jpg' %}" class="online" alt="" />
+	<img id="profile-img" src="{% get_identicon request.user.id %}" class="online" alt="" />
 	<p>{{ request.user.first_name }} {{ request.user.last_name }}</p>
 	<!-- i class="fa fa-chevron-down expand-button" aria-hidden="true"></i-->
 	<div id="status-options">
@@ -54,8 +54,8 @@
 	{% if u.id != request.user.id %}
 	<li class="contact" onclick="set_active(this, {{ u.id }})">
 	  <div class="wrap">
-	    <span id="user_id_{{ u.id }}" class="contact-status {{ u.chat_status }}"></span>
-	    <img id="user_img_{{ u.id }}" src="{% static 'chat/default-avatar.jpg' %}" alt="{{ u.first_name }} {{ u.last_name }}" />
+	    <span id="user_id_{{ u.id }}" class="contact-status {{ u.chat_status }}{% if cur_user %} active{% endif %}"></span>
+	    <img id="user_img_{{ u.id }}" src="{% get_identicon u.id %}" alt="{{ u.first_name }} {{ u.last_name }}" />
 	    <div class="meta">
 	      <p id="user_name_{{ u.id }}" class="name">{{ u.first_name }} {{ u.last_name }}</p>
 	      <!--p class="preview"></p-->
@@ -66,15 +66,20 @@
 	{% endfor %}
       </ul>
     </div>
-    <!--div id="bottom-bar">
+    <div id="bottom-bar">
       <button id="addcontact"><i class="fa fa-user-plus fa-fw" aria-hidden="true"></i> <span>Add contact</span></button>
       <button id="settings"><i class="fa fa-cog fa-fw" aria-hidden="true"></i> <span>Settings</span></button>
-    </div-->
+    </div>
   </div>
   <div class="content">
     <div class="contact-profile">
-      <img src="{% static 'chat/default-avatar.jpg' %}" alt="" />
+      {% if cur_user %}
+      <img id="contact_img_id" src="{% url 'identicon' cur_user.id %}">
+      <p style="line-height:60px;" id="contact_name_id">{% trans 'Conversation with ' %} {{ cur_user.first_name }} {{ cur_user.last_name }}</p>
+      {% else %}
+      <img id="contact_img_id">
       <p style="line-height:60px;" id="contact_name_id"></p>
+      {% endif %}
       <!--div class="social-media">
 	<i class="fab fa-facebook-f" aria-hidden="true"></i>
 	<i class="fab fa-twitter" aria-hidden="true"></i>
@@ -82,12 +87,21 @@
       </div-->
     </div>
     <div class="messages" id="message_box_id">
+      {% if cur_user_msgs %}
       <ul>
-	<li class="sent">
-	  <img src="{% static 'chat/default-avatar.jpg' %}" alt="" />
+      {% for msg in cur_user_msgs %}
+	<li class="{% if request.user.id == msg.from_user.id %}sent{% else %}replies{% endif %}">
+	  <div>
+	    <img src="{% get_identicon msg.from_user.id %}" alt="" />
+	    <div class="msg_div">
+	      <b>{{ msg.from_user.first_name }} {{ msg.from_user.last_name }}</b>
+	      <span class="msg_span">{{ msg.date }}</span></div>
+	  </div><br>
+	  <p class="msg_p">{{ msg.text }}</p>
 	</li>
+	{% endfor %}
       </ul>
-
+      {% endif %}
     </div>
     <div class="message-input">
       <div class="wrap">
@@ -290,7 +304,7 @@
 	 'tuid': cur_tuid,
 	 'msg': encodeURI(message)
      }));
-     $('<li class="sent"><div><img src="{% static 'chat/default-avatar.jpg' %}" alt="" /><div class="msg_div"><b>{{ request.user.first_name }} {{ request.user.last_name }}</b> <span class="msg_span">' + get_current_date() + '</span></div></div><br><p class="msg_p">' + message + '</p></li>').appendTo($('.messages ul'));
+     $('<li class="sent"><div><img src="{% get_identicon request.user.id %}" alt="" /><div class="msg_div"><b>{{ request.user.first_name }} {{ request.user.last_name }}</b> <span class="msg_span">' + get_current_date() + '</span></div></div><br><p class="msg_p">' + message + '</p></li>').appendTo($('.messages ul'));
      $('.message-input input').val(null);
      msg_box.scrollTop = msg_box.scrollHeight;
  }
@@ -322,10 +336,12 @@
 	 },
 	 success: function(data) {
 	     var contact_name = document.getElementById('contact_name_id');
+	     var contact_img = document.getElementById('contact_img_id');
 	     var delim = data.lastIndexOf("<ul>") - 1;
 	     var username = data.substring(0, delim);
 
 	     contact_name.innerHTML = "{% trans 'Conversation with ' %}" + username;
+	     contact_img.src = '/identicon/' + uid;
 	     data = data.substring(delim + 1);
 	     msg_box.innerHTML = decodeURI(data);
 	     msg_box.scrollTop = msg_box.scrollHeight;
