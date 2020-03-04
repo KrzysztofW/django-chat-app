@@ -18,6 +18,13 @@ def get_connected_user(uid):
             return u
     return None, None
 
+def get_connected_user_list(uid):
+    user_list = []
+    for u in connected_users:
+        if uid == u[0].id:
+            user_list.append(u)
+    return user_list
+
 def remove_connected_user(uid):
     for i in range(len(connected_users)):
         if connected_users[i][0].id == uid:
@@ -92,12 +99,10 @@ class ChatChannel(AsyncWebsocketConsumer):
         msg_obj.to_user = user
         await self.save_object(msg_obj)
 
-        user, channel_name = get_connected_user(tuid)
-        if user == None:
-            return
-        channel_layer = get_channel_layer()
-        await channel_layer.send(channel_name, {
-            'type': 'chat.message',
-            'uid': self.scope['user'].id,
-            'message': message,
+        for user, channel_name in get_connected_user_list(tuid):
+            channel_layer = get_channel_layer()
+            await channel_layer.send(channel_name, {
+                'type': 'chat.message',
+                'uid': self.scope['user'].id,
+                'message': message,
             })
