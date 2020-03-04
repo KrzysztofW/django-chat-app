@@ -151,6 +151,7 @@
  }
 
  function notifyMe(user_name, uid, img, msg) {
+     playSound();
      if (Notification.permission === 'granted') {
 	 var notification = new Notification('{% trans 'Message from' %}' + ' ' + user_name, {
 	     body: truncateString(msg, 40),
@@ -381,5 +382,9 @@
      });
  }
 
+ function playSound()
+ {
+     document.getElementById('sound').play();
+ }
 </script>
 {% endblock %}
