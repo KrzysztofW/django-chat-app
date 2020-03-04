@@ -11,6 +11,7 @@ from . import models as chat_models
 from users import models as user_models
 from django.contrib.auth import get_user_model
 from . consumers import connected_users, get_connected_user
+from common.lgc_types import ChatWebSocketCmd
 
 User = get_user_model()
 
@@ -46,6 +47,7 @@ def chat_view(request):
         'title': _('Chat'),
         'cur_user': user,
         'cur_user_msgs': msgs,
+        'ws_cmds': ChatWebSocketCmd,
     }
     return render(request, 'chat/chat.html', context)
 

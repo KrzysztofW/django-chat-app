@@ -24,19 +24,19 @@
 	  <ul class="nolist">
 	    <li id="status-away" class="active">
 	      <span class="status-circle">
-		<div id="status_win">{% trans 'Away' %}</div></span>
+		<div id="status_win" onclick="update_status('away')">{% trans 'Away' %}</div></span>
 	    </li>
 	    <li id="status-busy" class="active">
 	      <span class="status-circle">
-		<div id="status_win">{% trans 'Busy' %}</div></span>
+		<div id="status_win" onclick="update_status('busy')">{% trans 'Busy' %}</div></span>
 	    </li>
 	    <li id="status-online" class="active">
 	      <span class="status-circle">
-		<div id="status_win">{% trans 'Online' %}</div></span>
+		<div id="status_win" onclick="update_status('online')">{% trans 'Online' %}</div></span>
 	    </li>
 	    <li id="status-offline" class="active">
 	      <span class="status-circle">
-		<div id="status_win">{% trans 'Offline' %}</div></span>
+		<div id="status_win" onclick="update_status('offline')">{% trans 'Offline' %}</div></span>
 	    </li>
 	  </ul>
 	</div>
@@ -226,48 +226,44 @@
  chatSocket.onmessage = function(e) {
      var data = JSON.parse(e.data);
      var message = data['message'];
+     var cmd = data['cmd'];
+     var uid = data['uid'];
+     var status = data['status'];
 
-     if (typeof data['connect'] !== 'undefined') {
-	 var id = '#user_id_' + data['connect']
-	 var status = $(id);
+     if (typeof uid === 'undefined')
+	 return;
+     if (typeof cmd === 'undefined')
+	 return;
 
-	 if (typeof status.val() === 'undefined')
-	     return;
-	 if (typeof data['status'] === 'undefined')
-	     return;
+     var status_elem = $('#user_id_' + uid);
+     if (typeof status_elem.val() === 'undefined')
+	 return;
 
-	 status.removeClass('offline');
-	 status.addClass(data['status']);
+     switch (cmd) {
+     case {{ ws_cmds.CONNECT.value }}:
+	 status_elem.removeClass('offline');
+	 status_elem.addClass(status);
+	 return;
+
+     case {{ ws_cmds.DISCONNECT.value }}:
+	 status_elem.attr('class', 'contact-status offline');
+	 return;
+
+     case {{ ws_cmds.STATUS_UPDATE.value }}:
+	 status_elem.attr('class', 'contact-status ' + status);
 	 return;
      }
-     if (typeof data['disconnect'] !== 'undefined') {
-	 var id = '#user_id_' + data['disconnect'];
-	 var status = $(id);
 
-	 if (typeof status.val() === 'undefined')
-	     return;
-
-	 status.attr('class', 'contact-status offline');
-	 return;
-     }
-     if (typeof data['uid'] === 'undefined')
-	 return;
-
-     var id = '#user_name_' + data['uid'];
-     var user_name = $(id);
-
+     var user_name = $('#user_name_' + uid);
      if (typeof user_name.val() === 'undefined')
 	 return;
 
-     id = '#user_img_' + data['uid'];
-     var user_img = $(id);
-
+     var user_img = $('#user_img_' + uid);
      if (typeof user_img.val() === 'undefined')
 	 return;
 
-     if (cur_tuid != data['uid']) {
-	 id = '#user_msg_preview_' + data['uid'];
-	 var user_msg_preview = $(id);
+     if (cur_tuid != uid) {
+	 var user_msg_preview = $('#user_msg_preview_' + uid);
 
 	 if (typeof user_msg_preview.val() === 'undefined')
 	     return;
@@ -327,7 +323,7 @@
      }
 
      chatSocket.send(JSON.stringify({
-	 'fuid': {{ request.user.id }},
+	 'cmd': {{ ws_cmds.MSG.value }},
 	 'tuid': cur_tuid,
 	 'msg': encodeURI(message)
      }));
@@ -385,6 +381,14 @@
  function playSound()
  {
      document.getElementById('sound').play();
+ }
+
+ function update_status(status)
+ {
+     chatSocket.send(JSON.stringify({
+	 'cmd': {{ ws_cmds.STATUS_UPDATE.value }},
+	 'status': status,
+     }));
  }
 </script>
 {% endblock %}

@@ -6,6 +6,7 @@ from channels.layers import get_channel_layer
 from django.contrib.auth import get_user_model
 from channels.db import database_sync_to_async
 from . import models as chat_models
+from common.lgc_types import ChatWebSocketCmd
 
 User = get_user_model()
 
@@ -31,7 +32,6 @@ def remove_connected_user(uid):
             del connected_users[i]
             return
 
-
 class ChatChannel(AsyncWebsocketConsumer):
     @database_sync_to_async
     def get_user(self, uid):
@@ -53,7 +53,8 @@ class ChatChannel(AsyncWebsocketConsumer):
         await self.channel_layer.group_send(
             CONNECTED_USR_GRP, {
                 'type': 'chat.message',
-                'connect': uid,
+                'cmd' : ChatWebSocketCmd.CONNECT.value,
+                'uid': uid,
                 'status': 'online'
             }
         )
@@ -70,10 +71,16 @@ class ChatChannel(AsyncWebsocketConsumer):
         uid = self.scope['user'].id
         remove_connected_user(uid)
 
+        user_list = get_connected_user_list(uid)
+        """The user is still connected from a different device"""
+        if len(user_list):
+            return
+
         await self.channel_layer.group_send(
             CONNECTED_USR_GRP, {
                 'type': 'chat.message',
-                'disconnect': uid
+                'cmd': ChatWebSocketCmd.DISCONNECT.value,
+                'uid': uid,
             }
         )
 
@@ -83,6 +90,22 @@ class ChatChannel(AsyncWebsocketConsumer):
 
         try:
             text_data_json = json.loads(text_data)
+            cmd = text_data_json['cmd']
+
+            if cmd == ChatWebSocketCmd.STATUS_UPDATE.value:
+                for user, channel_name in connected_users:
+                    if self.scope['user'].id == user.id:
+                        continue
+
+                    channel_layer = get_channel_layer()
+                    await channel_layer.send(channel_name, {
+                        'type': 'chat.message',
+                        'cmd': ChatWebSocketCmd.STATUS_UPDATE.value,
+                        'uid': self.scope['user'].id,
+                        'status': text_data_json['status'],
+                    })
+                    return
+
             message = text_data_json['msg']
             tuid = text_data_json['tuid']
         except:
@@ -93,6 +116,8 @@ class ChatChannel(AsyncWebsocketConsumer):
         except:
             return
 
+        if user.id == self.scope['user'].id:
+            return
         msg_obj = chat_models.Message()
         msg_obj.text = message
         msg_obj.from_user = self.scope['user']
@@ -103,6 +128,7 @@ class ChatChannel(AsyncWebsocketConsumer):
             channel_layer = get_channel_layer()
             await channel_layer.send(channel_name, {
                 'type': 'chat.message',
+                'cmd': ChatWebSocketCmd.MSG.value,
                 'uid': self.scope['user'].id,
                 'message': message,
             })
