@@ -26,6 +26,7 @@ class Message(models.Model):
                                 related_name='to_user_message_set',
                                 null=True)
     channel = models.ForeignKey(Channel, on_delete=models.CASCADE, null=True)
+    unread = models.BooleanField(default=False)
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE,

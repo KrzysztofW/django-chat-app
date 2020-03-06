@@ -11,11 +11,11 @@ from . import models as chat_models
 from users import models as user_models
 from django.contrib.auth import get_user_model
 from . consumers import connected_users, get_connected_user
-from common.lgc_types import ChatWebSocketCmd
+from common.lgc_types import ChatWebSocketCmd, ChatStatus
 
 User = get_user_model()
 
-def get_user_msgs(request):
+def get_user_msgs(request, new=True):
     uid = request.GET.get('uid')
 
     if uid is None:
@@ -26,7 +26,11 @@ def get_user_msgs(request):
         return None, None
 
     msgs = (chat_models.Message.objects.filter(from_user=user, to_user=request.user)|
-            chat_models.Message.objects.filter(from_user=request.user, to_user=user)).order_by('date')
+            chat_models.Message.objects.filter(from_user=request.user,
+                                               to_user=user)).order_by('date')
+    if new == False:
+        msgs = msgs.filter(unread=False)
+
     return user, msgs
 
 @login_required
@@ -35,12 +39,14 @@ def chat_view(request):
 
     for u in users:
         conn_u, chann = get_connected_user(u.id)
-        if conn_u is not None:
-            u.chat_status = 'online'
+
+        if conn_u is None:
+            u.chat_status = ChatStatus.OFFLINE
         else:
-            u.chat_status = 'offline'
+            u.chat_status = conn_u.chat_status
 
     user, msgs = get_user_msgs(request)
+
     context = {
         'users': users,
         'connected_users': connected_users,
@@ -53,7 +59,12 @@ def chat_view(request):
 
 @login_required
 def get_msgs_view(request):
-    user, msgs = get_user_msgs(request)
+    user, chann = get_connected_user(request.user.id)
+    if user.chat_status == ChatStatus.OFFLINE:
+        user, msgs = get_user_msgs(request, new=False)
+    else:
+        user, msgs = get_user_msgs(request)
+        msgs.filter(unread=True).update(unread=False)
 
     if msgs is None:
         return render(request, 'chat/ajax_msgs.html', { 'msgs': None })
