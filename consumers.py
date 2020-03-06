@@ -60,6 +60,29 @@ class ChatChannel(AsyncWebsocketConsumer):
                 'uid': uid,
                 'status': status,
             })
+        if text_data_json['status'] == ChatStatus.OFFLINE:
+            return
+
+        unread_msgs = get_unread_messages(uid)
+        if unread_msgs.count() == 0:
+            return
+
+        msgs = []
+        for m in unread_msgs:
+            msgs.append({
+                'user_name': m.from_user.first_name + ' ' + m.from_user.last_name,
+                'text': m.text
+            })
+
+        for user, channel in get_connected_user_list(uid):
+            channel_layer = get_channel_layer()
+            await channel_layer.send(channel_name, {
+                'type': 'chat.message',
+                'cmd': ChatWebSocketCmd.NEW_MSGS.value,
+                'uid': self.scope['user'].id,
+                'messages': msgs,
+            })
+
 
     async def connect(self):
         global connected_users

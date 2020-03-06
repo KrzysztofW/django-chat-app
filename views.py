@@ -15,23 +15,44 @@ from common.lgc_types import ChatWebSocketCmd, ChatStatus
 
 User = get_user_model()
 
-def get_user_msgs(request, new=True):
+def get_user_msgs(request):
     uid = request.GET.get('uid')
 
     if uid is None:
-        return None, None
+        return None, None, None
     try:
         user = User.objects.get(id=uid)
     except:
-        return None, None
+        return None, None, None
 
     msgs = (chat_models.Message.objects.filter(from_user=user, to_user=request.user)|
             chat_models.Message.objects.filter(from_user=request.user,
                                                to_user=user)).order_by('date')
-    if new == False:
-        msgs = msgs.filter(unread=False)
+    return user, msgs.filter(unread=False), msgs.filter(unread=True)
 
-    return user, msgs
+def __get_msgs_view(request):
+    user, chann = get_connected_user(request.user.id)
+    from_user, msgs, new_msgs = get_user_msgs(request)
+
+    if user is not None and user.chat_status == ChatStatus.OFFLINE:
+        new_msgs = None
+
+    return {
+        'cur_user': from_user,
+        'cur_user_msgs': msgs,
+        'cur_user_new_msgs': new_msgs,
+    }
+
+def mark_msgs_as_read(msgs):
+    if msgs is not None:
+        msgs.update(unread=False)
+
+@login_required
+def get_msgs_view(request):
+    context = __get_msgs_view(request)
+    ret = render(request, 'chat/msg_box.html', context)
+    mark_msgs_as_read(context['cur_user_new_msgs'])
+    return ret
 
 @login_required
 def chat_view(request):
@@ -45,32 +66,12 @@ def chat_view(request):
         else:
             u.chat_status = conn_u.chat_status
 
-    user, msgs = get_user_msgs(request)
+    context = __get_msgs_view(request)
+    context['users'] = users
+    context['connected_users'] = connected_users
+    context['title'] = _('Chat')
+    context['ws_cmds'] = ChatWebSocketCmd
 
-    context = {
-        'users': users,
-        'connected_users': connected_users,
-        'title': _('Chat'),
-        'cur_user': user,
-        'cur_user_msgs': msgs,
-        'ws_cmds': ChatWebSocketCmd,
-    }
-    return render(request, 'chat/chat.html', context)
-
-@login_required
-def get_msgs_view(request):
-    user, chann = get_connected_user(request.user.id)
-    if user.chat_status == ChatStatus.OFFLINE:
-        user, msgs = get_user_msgs(request, new=False)
-    else:
-        user, msgs = get_user_msgs(request)
-        msgs.filter(unread=True).update(unread=False)
-
-    if msgs is None:
-        return render(request, 'chat/msg_box.html', { 'msgs': None })
-
-    context = {
-        'cur_user': user,
-        'cur_user_msgs': msgs
-    }
-    return render(request, 'chat/msg_box.html', context)
+    ret = render(request, 'chat/chat.html', context)
+    mark_msgs_as_read(context['cur_user_new_msgs'])
+    return ret

@@ -682,3 +682,19 @@ p, ul {
 #frame .content .message-input .wrap button:focus {
   outline: none;
 }
+
+.center_div {
+    width: 100%;
+    height: 20px;
+    border-bottom: 1px solid black;
+    text-align: center;
+}
+.center_span {
+    background-color: #F3F5F6;
+    padding: 0 10px;
+}
+
+.hr_separator {
+    overflow: auto;
+    border: 1px solid #0000000d;
+}
