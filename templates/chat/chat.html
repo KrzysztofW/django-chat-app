@@ -250,12 +250,6 @@
 	 return;
 
      switch (cmd) {
-     case {{ ws_cmds.CONNECT.value }}:
-	 status_elem.removeClass('offline');
-	 status_elem.addClass(status);
-	 general_msg_box_update(user_name.text(), user_img, 'joined in');
-	 return;
-
      case {{ ws_cmds.DISCONNECT.value }}:
 	 status_elem.attr('class', 'contact-status offline');
 	 general_msg_box_update(user_name.text(), user_img, 'left');
