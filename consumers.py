@@ -46,9 +46,11 @@ class ChatChannel(AsyncWebsocketConsumer):
         msgs = chat_models.Message.objects.filter(to_user.id==uid, unread==True)
         return msgs.all()
 
-    async def handle_status_update(self, uid, status):
+    async def handle_status_update(self, status):
+        uid = self.scope['user'].id;
+
         for user, channel_name in connected_users:
-            if uid == user.id:
+            if uid == user.id or user.chat_status == ChatStatus.OFFLINE:
                 user.chat_status = status
                 continue
 
@@ -127,8 +129,7 @@ class ChatChannel(AsyncWebsocketConsumer):
             cmd = text_data_json['cmd']
 
             if cmd == ChatWebSocketCmd.STATUS_UPDATE.value:
-                await self.handle_status_update(self.scope['user'].id,
-                                                text_data_json['status'])
+                await self.handle_status_update(text_data_json['status'])
                 return
 
             message = text_data_json['msg']
