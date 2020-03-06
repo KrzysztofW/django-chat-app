@@ -103,6 +103,34 @@
  var chatSocket = new ReconnectingWebSocket(ws_scheme + '://' +
 					    window.location.host +
 					    '/ws/chat');
+ var month = new Array();
+ {% if LANGUAGE_CODE == 'fr' %}
+ month[0] = "janvier";
+ month[1] = "février";
+ month[2] = "mars";
+ month[3] = "avril";
+ month[4] = "mai";
+ month[5] = "juin";
+ month[6] = "juillet";
+ month[7] = "août";
+ month[8] = "septembre";
+ month[9] = "octobre";
+ month[10] = "novembre";
+ month[11] = "décembre";
+ {% else %}
+ month[0] = "Jan.";
+ month[1] = "Feb.";
+ month[2] = "March";
+ month[3] = "April";
+ month[4] = "May";
+ month[5] = "June";
+ month[6] = "July";
+ month[7] = "August";
+ month[8] = "Sep.";
+ month[9] = "Oct.";
+ month[10] = "Nov.";
+ month[11] = "Dec.";
+ {% endif %}
 
  function scroll_down_msg_box()
  {
@@ -145,35 +173,6 @@
        Notification.requestPermission();
      }
  }
-
- var month = new Array();
- {% if LANGUAGE_CODE == 'fr' %}
- month[0] = "janvier";
- month[1] = "février";
- month[2] = "mars";
- month[3] = "avril";
- month[4] = "mai";
- month[5] = "juin";
- month[6] = "juillet";
- month[7] = "août";
- month[8] = "septembre";
- month[9] = "octobre";
- month[10] = "novembre";
- month[11] = "décembre";
- {% else %}
- month[0] = "Jan.";
- month[1] = "Feb.";
- month[2] = "March";
- month[3] = "April";
- month[4] = "May";
- month[5] = "June";
- month[6] = "July";
- month[7] = "August";
- month[8] = "Sep.";
- month[9] = "Oct.";
- month[10] = "Nov.";
- month[11] = "Dec.";
- {% endif %}
 
  function addZero(i) {
      if (i < 10) {
@@ -314,17 +313,6 @@
      scroll_down_msg_box();
  }
 
- $('.submit').click(function() {
-     newMessage();
- });
-
- $(window).on('keydown', function(e) {
-     if (e.which == 13) {
-	 newMessage();
-	 return false;
-     }
- });
-
  function set_active(elem, uid)
  {
      var id = '#user_msg_preview_' + uid;
@@ -369,5 +357,17 @@
      'status': status,
    }));
  }
+
+ $('.submit').click(function() {
+     newMessage();
+ });
+
+ $(window).on('keydown', function(e) {
+     if (e.which == 13) {
+	 newMessage();
+	 return false;
+     }
+ });
+
 </script>
 {% endblock %}
