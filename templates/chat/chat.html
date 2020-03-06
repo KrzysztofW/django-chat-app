@@ -56,6 +56,17 @@
     </div>
     <div id="contacts">
       <ul class="nolist" id="contact_list_id">
+	<li id="contact_id_general" class="contact{% if not cur_user %} active{% endif %}" onclick="set_active(this, 'general')" style='padding:10px;'>
+	  <div class="wrap">
+	    <div class="meta">
+	      <p class="name general_room">
+		<i class="fas fa-home"></i>&nbsp; {% trans 'General' %}
+	      </p>
+	    </div>
+	  </div>
+	</li>
+	<li><hr></li>
+
 	{% for u in users %}
 	{% if u.id != request.user.id %}
 	<li id="contact_id_{{ u.id}}" class="contact" onclick="set_active(this, {{ u.id }})">
@@ -95,7 +106,10 @@
 {% block javascript %}
  <script>
 
- var cur_tuid = '';
+ var general_msg_box = '';
+ var general_msg_box_hdr = '<div class="contact-profile"><p style="line-height:60px;" id="contact_name_id">&nbsp;&nbsp;{% trans 'Welcome ' %}</p></div><div class="messages" id="inner_msg_box_id"><ul>';
+ var general_msg_box_footer = '</ul></div>';
+ var cur_tuid = 'general';
  var cur_cuid = '';
  var cur_status = 'offline';
  var msg_box = document.getElementById('msg_box_id');
@@ -134,9 +148,9 @@
 
  function scroll_down_msg_box()
  {
-   var inner_msg_box = document.getElementById('inner_msg_box_id');
+     var inner_msg_box = document.getElementById('inner_msg_box_id');
 
-   inner_msg_box.scrollTop = inner_msg_box.scrollHeight;
+     inner_msg_box.scrollTop = inner_msg_box.scrollHeight;
  }
 
  document.addEventListener('DOMContentLoaded', function() {
@@ -170,7 +184,7 @@
 	     this.close();
 	 };
      } else if (Notification.permission !== 'denied') {
-       Notification.requestPermission();
+	 Notification.requestPermission();
      }
  }
 
@@ -200,6 +214,19 @@
      {% endif %}
  }
 
+ function general_msg_box_show()
+ {
+     msg_box.innerHTML = general_msg_box_hdr + general_msg_box + general_msg_box_footer;
+     scroll_down_msg_box();
+ }
+
+ function general_msg_box_update(username, img, action)
+ {
+     general_msg_box += '<li class="replies"><div><img src="' + img.attr('src') + '"><div class="msg_div"><b>' + username + '</b>&nbsp;' + action + '<span class="msg_span">' + get_current_date() + '</span></div></div><br></li>';
+     if (cur_tuid == 'general')
+	 general_msg_box_show();
+ }
+
  chatSocket.onmessage = function(e) {
      var data = JSON.parse(e.data);
      var message = data['message'];
@@ -214,23 +241,6 @@
      if (typeof status_elem.val() === 'undefined')
 	 return;
 
-     switch (cmd) {
-     case {{ ws_cmds.CONNECT.value }}:
-	 status_elem.removeClass('offline');
-	 status_elem.addClass(status);
-	 return;
-
-     case {{ ws_cmds.DISCONNECT.value }}:
-	 status_elem.attr('class', 'contact-status offline');
-	 return;
-
-     case {{ ws_cmds.STATUS_UPDATE.value }}:
-	 status_elem.attr('class', 'contact-status ' + status);
-	 return;
-     default:
-	 return;
-     }
-
      var user_name = $('#user_name_' + uid);
      if (typeof user_name.val() === 'undefined')
 	 return;
@@ -238,6 +248,34 @@
      var user_img = $('#user_img_' + uid);
      if (typeof user_img.val() === 'undefined')
 	 return;
+
+     switch (cmd) {
+     case {{ ws_cmds.CONNECT.value }}:
+	 status_elem.removeClass('offline');
+	 status_elem.addClass(status);
+	 general_msg_box_update(user_name.text(), user_img, 'joined in');
+	 return;
+
+     case {{ ws_cmds.DISCONNECT.value }}:
+	 status_elem.attr('class', 'contact-status offline');
+	 general_msg_box_update(user_name.text(), user_img, 'left');
+	 return;
+
+     case {{ ws_cmds.STATUS_UPDATE.value }}:
+	 if (status_elem.prop('classList').contains('offline'))
+	     action = 'joined in with status ' + status;
+	 else if (status == 'offline')
+	     action = 'left';
+	 else if (status == 'online')
+	     action = 'is online';
+	 else
+	     action = 'changed status to ' + status;
+	 status_elem.attr('class', 'contact-status ' + status);
+	 general_msg_box_update(user_name.text(), user_img, action);
+	 return;
+     default:
+	 return;
+     }
 
      if (cur_tuid != uid) {
 	 var user_msg_preview = $('#user_msg_preview_' + uid);
@@ -299,10 +337,10 @@
 	 return;
      }
 
-   if (cur_status == 'offline') {
-     alert('{% trans 'You are offline' %}');
-     return;
-   }
+     if (cur_status == 'offline') {
+	 alert('{% trans 'You are offline' %}');
+	 return;
+     }
      chatSocket.send(JSON.stringify({
 	 'cmd': {{ ws_cmds.MSG.value }},
 	 'tuid': cur_tuid,
@@ -315,12 +353,6 @@
 
  function set_active(elem, uid)
  {
-     var id = '#user_msg_preview_' + uid;
-     var user_msg_preview = $(id);
-
-     if (typeof user_msg_preview.val() !== 'undefined')
-	 user_msg_preview.text('');
-
      $('li').each(function(i) {
 	 $(this).removeClass('active');
      });
@@ -328,14 +360,25 @@
      elem.classList.add('active');
      cur_tuid = uid;
 
+     if (uid == 'general') {
+	 general_msg_box_show();
+	 return;
+     }
+
+     var id = '#user_msg_preview_' + uid;
+     var user_msg_preview = $(id);
+
+     if (typeof user_msg_preview.val() !== 'undefined')
+	 user_msg_preview.text('');
+
      $.ajax({
 	 url: "{% url 'chat-load-msgs' %}",
 	 data: {
 	     'uid': uid
 	 },
 	 success: function(data) {
-	   msg_box.innerHTML = decodeURI(data);
-	   scroll_down_msg_box();
+	     msg_box.innerHTML = decodeURI(data);
+	     scroll_down_msg_box();
 	 }
      });
  }
@@ -347,16 +390,17 @@
 
  function update_status(status)
  {
-   if (cur_status == status)
-     return;
+     if (cur_status == status)
+	 return;
 
-   cur_status = status;
+     cur_status = status;
 
-   chatSocket.send(JSON.stringify({
-     'cmd': {{ ws_cmds.STATUS_UPDATE.value }},
-     'status': status,
-   }));
+     chatSocket.send(JSON.stringify({
+	 'cmd': {{ ws_cmds.STATUS_UPDATE.value }},
+	 'status': status,
+     }));
  }
+ general_msg_box_show();
 
  $('.submit').click(function() {
      newMessage();
