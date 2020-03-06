@@ -2,7 +2,6 @@
 {% load static %}
 {% load crispy_forms_tags %}
 {% load i18n %}
-{% load l10n %}
 {% load custom_tags %}
 {% get_current_language as LANGUAGE_CODE %}
 
@@ -79,37 +78,9 @@
     </div>
   </div>
   <div class="content">
-    <div class="contact-profile">
-      {% if cur_user %}
-      <img id="contact_img_id" src="{% url 'user-img' cur_user.id %}">
-      <p style="line-height:60px;" id="contact_name_id">{% trans 'Conversation with ' %} {{ cur_user.first_name }} {{ cur_user.last_name }}</p>
-      {% else %}
-      <img id="contact_img_id">
-      <p style="line-height:60px;" id="contact_name_id"></p>
-      {% endif %}
-      <!--div class="social-media">
-	<i class="fab fa-facebook-f" aria-hidden="true"></i>
-	<i class="fab fa-twitter" aria-hidden="true"></i>
-	<i class="fab fa-instagram" aria-hidden="true"></i>
-      </div-->
-    </div>
-    <div class="messages" id="message_box_id">
-      {% if cur_user_msgs %}
-      <ul>
-      {% for msg in cur_user_msgs %}
-	<li class="{% if request.user.id == msg.from_user.id %}sent{% else %}replies{% endif %}">
-	  <div>
-	    <img src="{% url 'user-img' msg.from_user.id %}" alt="" />
-	    <div class="msg_div">
-	      <b>{{ msg.from_user.first_name }} {{ msg.from_user.last_name }}</b>
-	      <span class="msg_span">{{ msg.date }}</span></div>
-	  </div><br>
-	  <p class="msg_p">{{ msg.text }}</p>
-	</li>
-	{% endfor %}
-      </ul>
-      {% endif %}
-    </div>
+    <span id="msg_box_id">
+      {% include 'chat/msg_box.html' %}
+    </span>
     <div class="message-input">
       <div class="wrap">
 	<input type="text" placeholder="{% trans 'Write your message...' %}" />
@@ -126,13 +97,19 @@
 
  var cur_tuid = '';
  var cur_cuid = '';
- var msg_box = document.getElementById('message_box_id');
+ var cur_status = 'offline';
+ var msg_box = document.getElementById('msg_box_id');
  var ws_scheme = window.location.protocol == "https:" ? "wss" : "ws";
  var chatSocket = new ReconnectingWebSocket(ws_scheme + '://' +
 					    window.location.host +
 					    '/ws/chat');
 
- msg_box.scrollTop = msg_box.scrollHeight;
+ function scroll_down_msg_box()
+ {
+   var inner_msg_box = document.getElementById('inner_msg_box_id');
+
+   inner_msg_box.scrollTop = inner_msg_box.scrollHeight;
+ }
 
  document.addEventListener('DOMContentLoaded', function() {
      if (!Notification) {
@@ -231,9 +208,7 @@
      var uid = data['uid'];
      var status = data['status'];
 
-     if (typeof uid === 'undefined')
-	 return;
-     if (typeof cmd === 'undefined')
+     if (typeof uid === 'undefined' || typeof cmd === 'undefined')
 	 return;
 
      var status_elem = $('#user_id_' + uid);
@@ -252,6 +227,8 @@
 
      case {{ ws_cmds.STATUS_UPDATE.value }}:
 	 status_elem.attr('class', 'contact-status ' + status);
+	 return;
+     default:
 	 return;
      }
 
@@ -277,7 +254,7 @@
      }
      $('<li class="replies"><div><img src="' + user_img.attr('src') + '"><div class="msg_div"><b>' + user_name.text() + '</b> <span class="msg_span">' + get_current_date() + '</span></div></div><br><p class="msg_p">' + data['message'] + '</p></li>').appendTo($('.messages ul'));
      $('.message-input input').val(null);
-     msg_box.scrollTop = msg_box.scrollHeight;
+     scroll_down_msg_box();
  };
 
  $("#profile-img").click(function() {
@@ -334,7 +311,7 @@
      }));
      $('<li class="sent"><div><img src="{% url 'user-img' request.user.id %}" alt="" /><div class="msg_div"><b>{{ request.user.first_name }} {{ request.user.last_name }}</b> <span class="msg_span">' + get_current_date() + '</span></div></div><br><p class="msg_p">' + message + '</p></li>').appendTo($('.messages ul'));
      $('.message-input input').val(null);
-     msg_box.scrollTop = msg_box.scrollHeight;
+     scroll_down_msg_box();
  }
 
  $('.submit').click(function() {
@@ -369,16 +346,8 @@
 	     'uid': uid
 	 },
 	 success: function(data) {
-	     var contact_name = document.getElementById('contact_name_id');
-	     var contact_img = document.getElementById('contact_img_id');
-	     var delim = data.lastIndexOf("<ul>") - 1;
-	     var username = data.substring(0, delim);
-
-	     contact_name.innerHTML = "{% trans 'Conversation with ' %}" + username;
-	     contact_img.src = '/user/user-img/' + uid;
-	     data = data.substring(delim + 1);
-	     msg_box.innerHTML = decodeURI(data);
-	     msg_box.scrollTop = msg_box.scrollHeight;
+	   msg_box.innerHTML = decodeURI(data);
+	   scroll_down_msg_box();
 	 }
      });
  }

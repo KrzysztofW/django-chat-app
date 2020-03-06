@@ -67,10 +67,10 @@ def get_msgs_view(request):
         msgs.filter(unread=True).update(unread=False)
 
     if msgs is None:
-        return render(request, 'chat/ajax_msgs.html', { 'msgs': None })
+        return render(request, 'chat/msg_box.html', { 'msgs': None })
 
     context = {
-        'username': user.first_name + ' ' + user.last_name,
-        'msgs': msgs
+        'cur_user': user,
+        'cur_user_msgs': msgs
     }
-    return render(request, 'chat/ajax_msgs.html', context)
+    return render(request, 'chat/msg_box.html', context)
