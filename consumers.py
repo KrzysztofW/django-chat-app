@@ -124,23 +124,25 @@ class ChatChannel(AsyncWebsocketConsumer):
         )
 
     async def msg_send_to(self, msg_obj, user):
-
+        send_to_self = msg_obj.from_user == user
         user_list = get_connected_user_list(user.id)
-        if len(user_list) == 0:
+
+        if len(user_list) == 0 and not send_to_self:
             msg_obj.unread = True
-            await self.save_object(msg_obj)
             return
+
         if msg_obj.from_user == user:
             reply_tuid = msg_obj.to_user.id
         else:
             reply_tuid = None
 
         for user, channel_name in user_list:
-            if user.chat_status == ChatStatus.OFFLINE:
+            if user.chat_status == ChatStatus.OFFLINE and not send_to_self:
                 msg_obj.unread = True
                 continue
 
-            msg_obj.unread = False
+            if not send_to_self:
+                msg_obj.unread = False
             channel_layer = get_channel_layer()
             await channel_layer.send(channel_name, {
                 'type': 'chat.message',
