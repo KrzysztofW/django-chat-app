@@ -26,9 +26,9 @@ def get_connected_user_list(uid):
             user_list.append(u)
     return user_list
 
-def remove_connected_user(uid):
+def remove_connected_user(uid, channel_name):
     for i in range(len(connected_users)):
-        if connected_users[i][0].id == uid:
+        if connected_users[i][0].id == uid and connected_users[i][1] == channel_name:
             del connected_users[i]
             return
 
@@ -108,7 +108,7 @@ class ChatChannel(AsyncWebsocketConsumer):
     async def disconnect(self, close_code):
         self.channel_layer.group_discard(CONNECTED_USR_GRP, self.channel_name)
         uid = self.scope['user'].id
-        remove_connected_user(uid)
+        remove_connected_user(uid, self.channel_name)
 
         user_list = get_connected_user_list(uid)
         """The user may be still connected from a different device"""
