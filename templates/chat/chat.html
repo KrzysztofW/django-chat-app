@@ -301,13 +301,18 @@
 	 var msg = truncateString(message, 80);
 
 	 user_msg_preview.text(msg);
-	 notifyMe(user_name.text(), data['uid'], user_img, msg);
+	 notifyMe(user_name.text(), uid, user_img, msg);
 	 return;
      }
      if (uid == {{ request.user.id }})
 	 msg_class = 'sent';
-     else
+     else {
+	 if (!document.hasFocus()) {
+	     var msg = truncateString(message, 80);
+	     notifyMe(user_name.text(), uid, user_img, msg);
+	 }
 	 msg_class = 'replies';
+     }
 
      $('<li class="' + msg_class + '"><div><img src="' + user_img.attr('src') + '"><div class="msg_div"><b>' + user_name.text() + '</b> <span class="msg_span">' + get_current_date() + '</span></div></div><br><p class="msg_p">' + message + '</p></li>').appendTo($('.messages ul'));
      $('.message-input input').val(null);
