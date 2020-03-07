@@ -50,19 +50,19 @@ class ChatChannel(AsyncWebsocketConsumer):
         uid = self.scope['user'].id;
 
         for user, channel_name in connected_users:
-            if uid == user.id or user.chat_status == ChatStatus.OFFLINE:
+            if uid == user.id:
                 user.chat_status = status
-                continue
 
-            channel_layer = get_channel_layer()
-            print('send to user', user)
-            await channel_layer.send(channel_name, {
+        await self.channel_layer.group_send(
+            CONNECTED_USR_GRP, {
                 'type': 'chat.message',
                 'cmd': ChatWebSocketCmd.STATUS_UPDATE.value,
                 'uid': uid,
                 'status': status,
-            })
-        if text_data_json['status'] == ChatStatus.OFFLINE:
+            }
+        )
+
+        if status == ChatStatus.OFFLINE:
             return
 
         unread_msgs = get_unread_messages(uid)
@@ -93,6 +93,9 @@ class ChatChannel(AsyncWebsocketConsumer):
             raise DenyConnection('invalid user')
 
         self.scope['user'].chat_status = ChatStatus.OFFLINE
+        user, chann = get_connected_user(self.scope['user'].id)
+        if user is not None:
+            self.scope['user'].chat_status = user.chat_status
         connected_users.append((self.scope['user'], self.channel_name))
 
         await self.channel_layer.group_add(CONNECTED_USR_GRP,
@@ -108,7 +111,7 @@ class ChatChannel(AsyncWebsocketConsumer):
         remove_connected_user(uid)
 
         user_list = get_connected_user_list(uid)
-        """The user is still connected from a different device"""
+        """The user may be still connected from a different device"""
         if len(user_list):
             return
 
@@ -119,6 +122,33 @@ class ChatChannel(AsyncWebsocketConsumer):
                 'uid': uid,
             }
         )
+
+    async def msg_send_to(self, msg_obj, user):
+
+        user_list = get_connected_user_list(user.id)
+        if len(user_list) == 0:
+            msg_obj.unread = True
+            await self.save_object(msg_obj)
+            return
+        if msg_obj.from_user == user:
+            reply_tuid = msg_obj.to_user.id
+        else:
+            reply_tuid = None
+
+        for user, channel_name in user_list:
+            if user.chat_status == ChatStatus.OFFLINE:
+                msg_obj.unread = True
+                continue
+
+            msg_obj.unread = False
+            channel_layer = get_channel_layer()
+            await channel_layer.send(channel_name, {
+                'type': 'chat.message',
+                'cmd': ChatWebSocketCmd.MSG.value,
+                'uid': self.scope['user'].id,
+                'reply_tuid': reply_tuid,
+                'message': msg_obj.text,
+            })
 
     async def receive(self, text_data):
         if not self.scope['user'].is_authenticated:
@@ -150,24 +180,6 @@ class ChatChannel(AsyncWebsocketConsumer):
         msg_obj.from_user = self.scope['user']
         msg_obj.to_user = user
 
-        user_list = get_connected_user_list(tuid)
-        if len(user_list) == 0:
-            msg_obj.unread = True
-            await self.save_object(msg_obj)
-            return
-
-        for user, channel_name in user_list:
-            if user.chat_status == ChatStatus.OFFLINE:
-                msg_obj.unread = True
-                continue
-
-            msg_obj.unread = False
-            channel_layer = get_channel_layer()
-            await channel_layer.send(channel_name, {
-                'type': 'chat.message',
-                'cmd': ChatWebSocketCmd.MSG.value,
-                'uid': self.scope['user'].id,
-                'message': message,
-            })
-
+        await self.msg_send_to(msg_obj, user)
+        await self.msg_send_to(msg_obj, self.scope['user'])
         await self.save_object(msg_obj)

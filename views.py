@@ -10,8 +10,9 @@ import os, pdb, mimetypes, subprocess, pdb
 from . import models as chat_models
 from users import models as user_models
 from django.contrib.auth import get_user_model
-from . consumers import connected_users, get_connected_user
+from . consumers import connected_users, get_connected_user, get_connected_user_list
 from common.lgc_types import ChatWebSocketCmd, ChatStatus
+from django.http import JsonResponse
 
 User = get_user_model()
 
@@ -75,3 +76,28 @@ def chat_view(request):
     ret = render(request, 'chat/chat.html', context)
     mark_msgs_as_read(context['cur_user_new_msgs'])
     return ret
+
+@login_required
+def get_user_statuses_view(request):
+    users = []
+    for u in connected_users:
+        if u.chat_status != ChatStatus.OFFLINE:
+            users.append(u.id, u.chat_status)
+    data = {
+        'statutes': users,
+    }
+    return JsonResponse(data)
+
+@login_required
+def get_my_status(request):
+    user_list = get_connected_user_list(request.user.id)
+    status = ChatStatus.OFFLINE
+
+    for u, c in user_list:
+        if u.chat_status != ChatStatus.OFFLINE:
+            status = u.chat_status
+
+    data = {
+        'status': status,
+    }
+    return JsonResponse(data)

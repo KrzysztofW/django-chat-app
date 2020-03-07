@@ -17,7 +17,7 @@
 	</audio>
 
 	<img id="profile-img" src="{% url 'user-img' request.user.id %}" class="offline" alt="" />
-	<p>{{ request.user.first_name }} {{ request.user.last_name }}</p>
+	<p id="user_name_{{ request.user.id }}">{{ request.user.first_name }} {{ request.user.last_name }}</p>
 	<p id="unread_msgs_id" style="font-size:12px; color:#ff0000;"></p>
 	<!-- i class="fa fa-chevron-down expand-button" aria-hidden="true"></i-->
 	<div id="status-options">
@@ -60,7 +60,7 @@
 	  <div class="wrap">
 	    <div class="meta">
 	      <p class="name general_room">
-		<i class="fas fa-home"></i>&nbsp; {% trans 'General' %}
+		<i class="fas fa-home fa-2x" style="margin:-5px;"></i><div style="margin:-25px 0 0 45px;"><b>{% trans 'General' %}</b></div>
 	      </p>
 	    </div>
 	  </div>
@@ -227,9 +227,22 @@
 	 general_msg_box_show();
  }
 
+ chatSocket.onopen = function(e) {
+     $.ajax({
+	 url: "{% url 'chat-get-my-status' %}",
+	 success: function(data) {
+	     if (data['status'] != 'offline') {
+		 $('#profile-img').removeClass();
+		 $('#profile-img').addClass(data['status']);
+		 cur_status = data['status'];
+	     }
+	 }
+     });
+ }
+
  chatSocket.onmessage = function(e) {
      var data = JSON.parse(e.data);
-     var message = data['message'];
+     var message = decodeURI(data['message']);
      var cmd = data['cmd'];
      var uid = data['uid'];
      var status = data['status'];
@@ -237,15 +250,19 @@
      if (typeof uid === 'undefined' || typeof cmd === 'undefined')
 	 return;
 
-     var status_elem = $('#user_id_' + uid);
-     if (typeof status_elem.val() === 'undefined')
-	 return;
-
+     if (uid == {{ request.user.id }}) {
+	 var status_elem = $('#profile-img');
+	 var user_img = status_elem;
+     } else {
+	 var status_elem = $('#user_id_' + uid);
+	 var user_img = $('#user_img_' + uid);
+     }
      var user_name = $('#user_name_' + uid);
+
      if (typeof user_name.val() === 'undefined')
 	 return;
-
-     var user_img = $('#user_img_' + uid);
+     if (typeof status_elem.val() === 'undefined')
+	 return;
      if (typeof user_img.val() === 'undefined')
 	 return;
 
@@ -256,7 +273,11 @@
 	 return;
 
      case {{ ws_cmds.STATUS_UPDATE.value }}:
-	 if (status_elem.prop('classList').contains('offline'))
+	 /* update my status */
+	 if (uid == {{ request.user.id }})
+	     cur_status = status;
+
+	 if (status_elem.prop('classList').contains('offline') && status != 'offline')
 	     action = 'joined in with status ' + status;
 	 else if (status == 'offline')
 	     action = 'left';
@@ -268,22 +289,27 @@
 	 general_msg_box_update(user_name.text(), user_img, action);
 	 return;
      default:
-	 return;
+	 break;
      }
 
-     if (cur_tuid != uid) {
+     if (cur_tuid != uid && cur_tuid != data['reply_tuid']) {
 	 var user_msg_preview = $('#user_msg_preview_' + uid);
 
 	 if (typeof user_msg_preview.val() === 'undefined')
 	     return;
 
-	 var msg = truncateString(decodeURI(data['message']), 80);
+	 var msg = truncateString(message, 80);
 
 	 user_msg_preview.text(msg);
 	 notifyMe(user_name.text(), data['uid'], user_img, msg);
 	 return;
      }
-     $('<li class="replies"><div><img src="' + user_img.attr('src') + '"><div class="msg_div"><b>' + user_name.text() + '</b> <span class="msg_span">' + get_current_date() + '</span></div></div><br><p class="msg_p">' + data['message'] + '</p></li>').appendTo($('.messages ul'));
+     if (uid == {{ request.user.id }})
+	 msg_class = 'sent';
+     else
+	 msg_class = 'replies';
+
+     $('<li class="' + msg_class + '"><div><img src="' + user_img.attr('src') + '"><div class="msg_div"><b>' + user_name.text() + '</b> <span class="msg_span">' + get_current_date() + '</span></div></div><br><p class="msg_p">' + message + '</p></li>').appendTo($('.messages ul'));
      $('.message-input input').val(null);
      scroll_down_msg_box();
  };
@@ -340,9 +366,7 @@
 	 'tuid': cur_tuid,
 	 'msg': encodeURI(message)
      }));
-     $('<li class="sent"><div><img src="{% url 'user-img' request.user.id %}" alt="" /><div class="msg_div"><b>{{ request.user.first_name }} {{ request.user.last_name }}</b> <span class="msg_span">' + get_current_date() + '</span></div></div><br><p class="msg_p">' + message + '</p></li>').appendTo($('.messages ul'));
      $('.message-input input').val(null);
-     scroll_down_msg_box();
  }
 
  function set_active(elem, uid)
