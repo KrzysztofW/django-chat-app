@@ -289,7 +289,8 @@
 	 else
 	     action = 'changed status to ' + status;
 	 status_elem.attr('class', 'contact-status ' + status);
-	 general_msg_box_update(user_name.text(), user_img, action);
+	 if (action != 'left' || uid != {{ request.user.id }})
+	     general_msg_box_update(user_name.text(), user_img, action);
 	 return;
      default:
 	 break;

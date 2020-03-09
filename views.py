@@ -100,9 +100,12 @@ def get_my_status(request):
     except:
         status = ChatStatus.OFFLINE.value
 
-    for u, c in user_list:
-        if u.chat_status != ChatStatus.OFFLINE.value:
-            status = u.chat_status
+    if len(user_list):
+        for u, c in user_list:
+            if u.chat_status != ChatStatus.OFFLINE.value:
+                status = u.chat_status
+    else:
+        status = ChatStatus.from_db_name(request.user.last_chat_status)
 
     data = {
         'status': status,

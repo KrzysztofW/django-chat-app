@@ -115,11 +115,13 @@ class ChatChannel(AsyncWebsocketConsumer):
         user, chann = get_connected_user(self.scope['user'].id)
         if user is not None:
             self.scope['user'].chat_status = user.chat_status
+        else:
+            self.scope['user'].chat_status = ChatStatus.from_db_name(self.scope['user'].last_chat_status)
         connected_users.append((self.scope['user'], self.channel_name))
 
-        await self.channel_layer.group_add(CONNECTED_USR_GRP,
-                                           self.channel_name)
+        await self.channel_layer.group_add(CONNECTED_USR_GRP, self.channel_name)
         await self.accept()
+        await self.handle_status_update(self.scope['user'].chat_status)
 
     async def chat_message(self, event):
         await self.send(text_data=json.dumps(event))
@@ -127,12 +129,15 @@ class ChatChannel(AsyncWebsocketConsumer):
     async def disconnect(self, close_code):
         self.channel_layer.group_discard(CONNECTED_USR_GRP, self.channel_name)
         uid = self.scope['user'].id
+        user_list = get_connected_user_list(uid)
         remove_connected_user(uid, self.channel_name)
 
-        user_list = get_connected_user_list(uid)
         """The user may be still connected from a different device"""
-        if len(user_list):
+        if len(user_list) > 1:
             return
+        self.scope['user'].last_chat_status = ChatStatus.to_db_name(user_list[0][0].chat_status)
+
+        await self.save_object(self.scope['user'])
 
         await self.channel_layer.group_send(
             CONNECTED_USR_GRP, {
