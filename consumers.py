@@ -13,6 +13,12 @@ User = get_user_model()
 connected_users = [] # it must be a list to track users connected multiple times
 CONNECTED_USR_GRP = 'connected-users'
 
+def is_status_valid(status):
+    for e in ChatStatus:
+        if e.value == status:
+            return True
+    return False
+
 def get_connected_user(uid):
     for u in connected_users:
         if uid == u[0].id:
@@ -47,6 +53,9 @@ class ChatChannel(AsyncWebsocketConsumer):
         return msgs.all()
 
     async def handle_status_update(self, status):
+        if not is_status_valid(status):
+            return
+
         uid = self.scope['user'].id;
 
         for user, channel_name in connected_users:
@@ -62,7 +71,7 @@ class ChatChannel(AsyncWebsocketConsumer):
             }
         )
 
-        if status == ChatStatus.OFFLINE:
+        if status == ChatStatus.OFFLINE.value:
             return
 
         unread_msgs = get_unread_messages(uid)
@@ -92,7 +101,7 @@ class ChatChannel(AsyncWebsocketConsumer):
         if not self.scope['user'].is_authenticated:
             raise DenyConnection('invalid user')
 
-        self.scope['user'].chat_status = ChatStatus.OFFLINE
+        self.scope['user'].chat_status = ChatStatus.OFFLINE.value
         user, chann = get_connected_user(self.scope['user'].id)
         if user is not None:
             self.scope['user'].chat_status = user.chat_status
@@ -137,7 +146,7 @@ class ChatChannel(AsyncWebsocketConsumer):
             reply_tuid = None
 
         for user, channel_name in user_list:
-            if user.chat_status == ChatStatus.OFFLINE and not send_to_self:
+            if user.chat_status == ChatStatus.OFFLINE.value and not send_to_self:
                 msg_obj.unread = True
                 continue
 
@@ -155,7 +164,6 @@ class ChatChannel(AsyncWebsocketConsumer):
     async def receive(self, text_data):
         if not self.scope['user'].is_authenticated:
             return
-
         try:
             text_data_json = json.loads(text_data)
             cmd = text_data_json['cmd']

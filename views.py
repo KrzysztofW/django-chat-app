@@ -10,7 +10,8 @@ import os, pdb, mimetypes, subprocess, pdb
 from . import models as chat_models
 from users import models as user_models
 from django.contrib.auth import get_user_model
-from . consumers import connected_users, get_connected_user, get_connected_user_list
+from . consumers import (connected_users, get_connected_user,
+                         get_connected_user_list, is_status_valid)
 from common.lgc_types import ChatWebSocketCmd, ChatStatus
 from django.http import JsonResponse
 
@@ -35,7 +36,7 @@ def __get_msgs_view(request):
     user, chann = get_connected_user(request.user.id)
     from_user, msgs, new_msgs = get_user_msgs(request)
 
-    if user is not None and user.chat_status == ChatStatus.OFFLINE:
+    if user is not None and user.chat_status == ChatStatus.OFFLINE.value:
         new_msgs = None
 
     return {
@@ -63,7 +64,7 @@ def chat_view(request):
         conn_u, chann = get_connected_user(u.id)
 
         if conn_u is None:
-            u.chat_status = ChatStatus.OFFLINE
+            u.chat_status = ChatStatus.OFFLINE.value
         else:
             u.chat_status = conn_u.chat_status
 
@@ -81,7 +82,7 @@ def chat_view(request):
 def get_user_statuses_view(request):
     users = []
     for u in connected_users:
-        if u.chat_status != ChatStatus.OFFLINE:
+        if u.chat_status != ChatStatus.OFFLINE.value:
             users.append(u.id, u.chat_status)
     data = {
         'statutes': users,
@@ -91,10 +92,16 @@ def get_user_statuses_view(request):
 @login_required
 def get_my_status(request):
     user_list = get_connected_user_list(request.user.id)
-    status = ChatStatus.OFFLINE
+    try:
+        text_data_json = json.loads(request.body)
+        status = text_data_json['status']
+        if not is_status_valid(status):
+            status = ChatStatus.OFFLINE.value
+    except:
+        status = ChatStatus.OFFLINE.value
 
     for u, c in user_list:
-        if u.chat_status != ChatStatus.OFFLINE:
+        if u.chat_status != ChatStatus.OFFLINE.value:
             status = u.chat_status
 
     data = {

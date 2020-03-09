@@ -230,6 +230,9 @@
  chatSocket.onopen = function(e) {
      $.ajax({
 	 url: "{% url 'chat-get-my-status' %}",
+	 data: {
+	     'status': cur_status
+	 },
 	 success: function(data) {
 	     if (data['status'] != 'offline') {
 		 $('#profile-img').removeClass();
