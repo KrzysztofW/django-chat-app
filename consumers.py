@@ -5,6 +5,7 @@ import json, pdb
 from channels.layers import get_channel_layer
 from django.contrib.auth import get_user_model
 from channels.db import database_sync_to_async
+from asgiref.sync import sync_to_async
 from . import models as chat_models
 from users import models as user_models
 from common.lgc_types import ChatWebSocketCmd, ChatStatus
@@ -49,8 +50,22 @@ class ChatChannel(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_unread_messages(self, uid):
-        msgs = chat_models.Message.objects.filter(to_user.id==uid, unread==True)
+        msgs = chat_models.Message.objects.filter(to_user=uid, unread=True)
         return msgs.all()
+
+    @sync_to_async
+    def get_len(self, objs):
+        return objs.count()
+
+    @sync_to_async
+    def fill_msgs(self, objs):
+        msgs = []
+        for m in objs:
+            msgs.append({
+                'user_name': m.from_user.first_name + ' ' + m.from_user.last_name,
+                'text': m.text
+            })
+        return msgs
 
     async def handle_status_update(self, status):
         if not is_status_valid(status):
@@ -74,16 +89,11 @@ class ChatChannel(AsyncWebsocketConsumer):
         if status == ChatStatus.OFFLINE.value:
             return
 
-        unread_msgs = get_unread_messages(uid)
-        if unread_msgs.count() == 0:
+        unread_msgs = await self.get_unread_messages(uid)
+        if self.get_len(unread_msgs) == 0:
             return
 
-        msgs = []
-        for m in unread_msgs:
-            msgs.append({
-                'user_name': m.from_user.first_name + ' ' + m.from_user.last_name,
-                'text': m.text
-            })
+        msgs = await self.fill_msgs(unread_msgs)
 
         for user, channel in get_connected_user_list(uid):
             channel_layer = get_channel_layer()
