@@ -22,19 +22,19 @@
 	<!-- i class="fa fa-chevron-down expand-button" aria-hidden="true"></i-->
 	<div id="status-options">
 	  <ul class="nolist">
-	    <li id="status-away" class="active" onclick="update_status('away')">
+	    <li id="status-away" class="active" onclick="chatns.update_status('away')">
 	      <span class="status-circle">
 		<div id="status_win">{% trans 'Away' %}</div></span>
 	    </li>
-	    <li id="status-busy" class="active" onclick="update_status('busy')">
+	    <li id="status-busy" class="active" onclick="chatns.update_status('busy')">
 	      <span class="status-circle">
 		<div id="status_win">{% trans 'Busy' %}</div></span>
 	    </li>
-	    <li id="status-online" class="active" onclick="update_status('online')">
+	    <li id="status-online" class="active" onclick="chatns.update_status('online')">
 	      <span class="status-circle">
 		<div id="status_win">{% trans 'Online' %}</div></span>
 	    </li>
-	    <li id="status-offline" class="active" onclick="update_status('offline')">
+	    <li id="status-offline" class="active" onclick="chatns.update_status('offline')">
 	      <span class="status-circle">
 		<div id="status_win">{% trans 'Offline' %}</div></span>
 	    </li>
@@ -56,7 +56,7 @@
     </div>
     <div id="contacts">
       <ul class="nolist" id="contact_list_id">
-	<li id="contact_id_general" class="contact{% if not cur_user %} active{% endif %}" onclick="set_active(this, 'general')" style='padding:10px;'>
+	<li id="contact_id_general" class="contact{% if not cur_user %} active{% endif %}" onclick="chatns.set_active(this, 'general')" style='padding:10px;'>
 	  <div class="wrap">
 	    <div class="meta">
 	      <p class="name general_room">
@@ -69,7 +69,7 @@
 
 	{% for u in users %}
 	{% if u.id != request.user.id %}
-	<li id="contact_id_{{ u.id}}" class="contact" onclick="set_active(this, {{ u.id }})">
+	<li id="contact_id_{{ u.id}}" class="contact" onclick="chatns.set_active(this, {{ u.id }})">
 	  <div class="wrap">
 	    <span id="user_id_{{ u.id }}" class="contact-status {{ u.chat_status }}{% if cur_user %} active{% endif %}"></span>
 	    <img id="user_img_{{ u.id }}" src="{% url 'user-img' u.id %}" alt="{{ u.first_name }} {{ u.last_name }}" />
@@ -84,7 +84,8 @@
       </ul>
     </div>
     <div id="bottom-bar">
-      <button onclick="add_channel();" id="addcontact"><i class="fa fa-user-plus fa-fw" aria-hidden="true"></i> <span>Add contact</span></button>
+      <button onclick="chatns.add_channel();" id="addcontact">
+	<i class="fa fa-user-plus fa-fw" aria-hidden="true"></i> <span>{% trans 'Add channel' %}</span></button>
       <button id="settings"><i class="fa fa-cog fa-fw" aria-hidden="true"></i> <span>Settings</span></button>
     </div>
   </div>
@@ -105,340 +106,6 @@
 
 {% block javascript %}
  <script>
-
- var general_msg_box = '';
- var general_msg_box_hdr = '<div class="contact-profile"><p style="line-height:60px;" id="contact_name_id">&nbsp;&nbsp;{% trans 'Welcome ' %}</p></div><div class="messages" id="inner_msg_box_id"><ul>';
- var general_msg_box_footer = '</ul></div>';
- var cur_tuid = 'general';
- var cur_cuid = '';
- var cur_status = 'offline';
- var msg_box = document.getElementById('msg_box_id');
- var ws_scheme = window.location.protocol == "https:" ? "wss" : "ws";
- var chatSocket = new ReconnectingWebSocket(ws_scheme + '://' +
-					    window.location.host +
-					    '/ws/chat');
- var month = new Array();
- {% if LANGUAGE_CODE == 'fr' %}
- month[0] = "janvier";
- month[1] = "février";
- month[2] = "mars";
- month[3] = "avril";
- month[4] = "mai";
- month[5] = "juin";
- month[6] = "juillet";
- month[7] = "août";
- month[8] = "septembre";
- month[9] = "octobre";
- month[10] = "novembre";
- month[11] = "décembre";
- {% else %}
- month[0] = "Jan.";
- month[1] = "Feb.";
- month[2] = "March";
- month[3] = "April";
- month[4] = "May";
- month[5] = "June";
- month[6] = "July";
- month[7] = "August";
- month[8] = "Sep.";
- month[9] = "Oct.";
- month[10] = "Nov.";
- month[11] = "Dec.";
- {% endif %}
-
- function scroll_down_msg_box()
- {
-     var inner_msg_box = document.getElementById('inner_msg_box_id');
-
-     inner_msg_box.scrollTop = inner_msg_box.scrollHeight;
- }
-
- document.addEventListener('DOMContentLoaded', function() {
-     if (!Notification) {
-	 alert('Desktop notifications not available in your browser.');
-	 return;
-     }
-
-     if (Notification.permission !== 'granted')
-	 Notification.requestPermission();
- });
-
- function truncateString(str, num) {
-     if (str.length <= num) {
-	 return str
-     }
-     return str.slice(0, num) + '...'
- }
-
- function notifyMe(user_name, uid, img, msg) {
-     playSound();
-     if (Notification.permission === 'granted') {
-	 var notification = new Notification('{% trans 'Message from' %}' + ' ' + user_name, {
-	     body: truncateString(msg, 40),
-	 });
-	 notification.onclick = function() {
-	     var contact_elem = document.getElementById('contact_id_' + uid);
-
-	     window.focus();
-	     set_active(contact_elem, uid);
-	     this.close();
-	 };
-     } else if (Notification.permission !== 'denied') {
-	 Notification.requestPermission();
-     }
- }
-
- function addZero(i) {
-     if (i < 10) {
-	 i = "0" + i;
-     }
-     return i;
- }
-
- function get_current_date()
- {
-     var today = new Date();
-     var n = month[today.getMonth()];
-     var h = today.getHours();
-     var ampm = '';
-
-     {% if LANGUAGE_CODE == 'en' %}
-     if (h > 12) {
-	 ampm = ' p.m.';
-	 h -= 12;
-     } else
-	 ampm = ' a.m.';
-     return n + ' ' + (today.getDay() + 1) + ', ' + today.getFullYear() + ', ' + h + ':' + addZero(today.getMinutes()) + ampm;
-     {% else %}
-     return (today.getDay() + 1) + ' ' + n + ' ' + today.getFullYear() + ' ' + addZero(h) + ':' + addZero(today.getMinutes());
-     {% endif %}
- }
-
- function general_msg_box_show()
- {
-     msg_box.innerHTML = general_msg_box_hdr + general_msg_box + general_msg_box_footer;
-     scroll_down_msg_box();
- }
-
- function general_msg_box_update(username, img, action)
- {
-     general_msg_box += '<li class="replies"><div><img src="' + img.attr('src') + '"><div class="msg_div"><b>' + username + '</b>&nbsp;' + action + '<span class="msg_span">' + get_current_date() + '</span></div></div><br></li>';
-     if (cur_tuid == 'general')
-	 general_msg_box_show();
- }
-
- chatSocket.onopen = function(e) {
-     $.ajax({
-	 url: "{% url 'chat-get-my-status' %}",
-	 data: {
-	     'status': cur_status
-	 },
-	 success: function(data) {
-	     if (data['status'] != 'offline') {
-		 $('#profile-img').removeClass();
-		 $('#profile-img').addClass(data['status']);
-		 cur_status = data['status'];
-	     }
-	 }
-     });
- }
-
- chatSocket.onmessage = function(e) {
-     var data = JSON.parse(e.data);
-     var message = decodeURI(data['message']);
-     var cmd = data['cmd'];
-     var uid = data['uid'];
-     var status = data['status'];
-
-     if (typeof uid === 'undefined' || typeof cmd === 'undefined')
-	 return;
-
-     if (uid == {{ request.user.id }}) {
-	 var status_elem = $('#profile-img');
-	 var user_img = status_elem;
-     } else {
-	 var status_elem = $('#user_id_' + uid);
-	 var user_img = $('#user_img_' + uid);
-     }
-     var user_name = $('#user_name_' + uid);
-
-     if (typeof user_name.val() === 'undefined')
-	 return;
-     if (typeof status_elem.val() === 'undefined')
-	 return;
-     if (typeof user_img.val() === 'undefined')
-	 return;
-
-     switch (cmd) {
-     case {{ ws_cmds.DISCONNECT.value }}:
-	 status_elem.attr('class', 'contact-status offline');
-	 general_msg_box_update(user_name.text(), user_img, 'left');
-	 return;
-
-     case {{ ws_cmds.STATUS_UPDATE.value }}:
-	 /* update my status */
-	 if (uid == {{ request.user.id }})
-	     cur_status = status;
-
-	 if (status_elem.prop('classList').contains('offline') && status != 'offline')
-	     action = 'joined in with status ' + status;
-	 else if (status == 'offline')
-	     action = 'left';
-	 else if (status == 'online')
-	     action = 'is online';
-	 else
-	     action = 'changed status to ' + status;
-	 status_elem.attr('class', 'contact-status ' + status);
-	 if (action != 'left' || uid != {{ request.user.id }})
-	     general_msg_box_update(user_name.text(), user_img, action);
-	 return;
-     default:
-	 break;
-     }
-
-     if (cur_tuid != uid && cur_tuid != data['reply_tuid']) {
-	 var user_msg_preview = $('#user_msg_preview_' + uid);
-
-	 if (typeof user_msg_preview.val() === 'undefined')
-	     return;
-
-	 var msg = truncateString(message, 80);
-
-	 user_msg_preview.text(msg);
-	 notifyMe(user_name.text(), uid, user_img, msg);
-	 return;
-     }
-     if (uid == {{ request.user.id }})
-	 msg_class = 'sent';
-     else {
-	 if (!document.hasFocus()) {
-	     var msg = truncateString(message, 80);
-	     notifyMe(user_name.text(), uid, user_img, msg);
-	 }
-	 msg_class = 'replies';
-     }
-
-     $('<li class="' + msg_class + '"><div><img src="' + user_img.attr('src') + '"><div class="msg_div"><b>' + user_name.text() + '</b> <span class="msg_span">' + get_current_date() + '</span></div></div><br><p class="msg_p">' + message + '</p></li>').appendTo($('.messages ul'));
-     $('.message-input input').val(null);
-     scroll_down_msg_box();
- };
-
- $("#profile-img").click(function() {
-     $("#status-options").toggleClass("active");
- });
-
- $(".expand-button").click(function() {
-     $("#profile").toggleClass("expanded");
-     $("#contacts").toggleClass("expanded");
- });
-
- $("#status-options ul li").click(function() {
-     $("#profile-img").removeClass();
-     $("#status-online").removeClass("active");
-     $("#status-away").removeClass("active");
-     $("#status-busy").removeClass("active");
-     $("#status-offline").removeClass("active");
-     $(this).addClass("active");
-
-     if($("#status-online").hasClass("active")) {
-	 $("#profile-img").addClass("online");
-     } else if ($("#status-away").hasClass("active")) {
-	 $("#profile-img").addClass("away");
-     } else if ($("#status-busy").hasClass("active")) {
-	 $("#profile-img").addClass("busy");
-     } else if ($("#status-offline").hasClass("active")) {
-	 $("#profile-img").addClass("offline");
-     } else {
-	 $("#profile-img").removeClass();
-     };
-
-     $("#status-options").removeClass("active");
- });
-
- function newMessage() {
-     message = $(".message-input input").val();
-     message = message.replace(/<[^>]*>?/gm, '');
-
-     if($.trim(message) == '') {
-	 return false;
-     }
-     if (cur_tuid == '') {
-	 return;
-     }
-
-     if (cur_status == 'offline') {
-	 alert('{% trans 'You are offline' %}');
-	 return;
-     }
-     chatSocket.send(JSON.stringify({
-	 'cmd': {{ ws_cmds.MSG.value }},
-	 'tuid': cur_tuid,
-	 'msg': encodeURI(message)
-     }));
-     $('.message-input input').val(null);
- }
-
- function set_active(elem, uid)
- {
-     $('li').each(function(i) {
-	 $(this).removeClass('active');
-     });
-
-     elem.classList.add('active');
-     cur_tuid = uid;
-
-     if (uid == 'general') {
-	 general_msg_box_show();
-	 return;
-     }
-
-     var id = '#user_msg_preview_' + uid;
-     var user_msg_preview = $(id);
-
-     if (typeof user_msg_preview.val() !== 'undefined')
-	 user_msg_preview.text('');
-
-     $.ajax({
-	 url: "{% url 'chat-load-msgs' %}",
-	 data: {
-	     'uid': uid
-	 },
-	 success: function(data) {
-	     msg_box.innerHTML = decodeURI(data);
-	     scroll_down_msg_box();
-	 }
-     });
- }
-
- function playSound()
- {
-     document.getElementById('sound').play();
- }
-
- function update_status(status)
- {
-     if (cur_status == status)
-	 return;
-
-     cur_status = status;
-
-     chatSocket.send(JSON.stringify({
-	 'cmd': {{ ws_cmds.STATUS_UPDATE.value }},
-	 'status': status,
-     }));
- }
- general_msg_box_show();
-
- $('.submit').click(function() {
-     newMessage();
- });
-
- $(window).on('keydown', function(e) {
-     if (e.which == 13) {
-	 newMessage();
-	 return false;
-     }
- });
-
+ {% include 'chat/chat.js' %}
 </script>
 {% endblock %}
