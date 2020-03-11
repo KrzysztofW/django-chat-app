@@ -18,7 +18,7 @@
 
 	<img id="profile-img" src="{% url 'user-img' request.user.id %}" class="offline" alt="" />
 	<p id="user_name_{{ request.user.id }}">{{ request.user.first_name }} {{ request.user.last_name }}</p>
-	<p id="unread_msgs_id" style="font-size:12px; color:#ff0000;"></p>
+	<p id="unread_msgs_id" class="unread_msg_alert invisible"><b>{% trans 'You have unread messages' %}</b></p>
 	<!-- i class="fa fa-chevron-down expand-button" aria-hidden="true"></i-->
 	<div id="status-options">
 	  <ul class="nolist">

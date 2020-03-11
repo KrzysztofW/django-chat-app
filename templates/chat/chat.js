@@ -7,6 +7,8 @@ var chatns = {
     cur_cuid : '',
     cur_status : 'offline',
     msg_box : document.getElementById('msg_box_id'),
+    unread_msg_cnt : new Set(),
+    unread_msg_elem : document.getElementById('unread_msgs_id'),
 
     {% if LANGUAGE_CODE == 'fr' %}
     month : ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"],
@@ -28,8 +30,22 @@ var chatns = {
 	return str.slice(0, num) + '...';
     },
 
+    update_unread_msg_cnt:function(uid, add) {
+	if (add)
+	    chatns.unread_msg_cnt.add(uid);
+	else
+	    chatns.unread_msg_cnt.delete(uid);
+
+	if (chatns.unread_msg_cnt.size == 0) {
+	    chatns.unread_msg_elem.classList.add('invisible');
+	    return;
+	}
+	chatns.unread_msg_elem.classList.remove('invisible');
+    },
+
     notify_me:function(user_name, uid, img, msg) {
 	chatns.play_sound();
+	chatns.update_unread_msg_cnt(uid, true);
 	if (Notification.permission === 'granted') {
 	    var notification = new Notification('{% trans 'Message from' %}' + ' ' + user_name, {
 		body: chatns.truncate_string(msg, 40),
@@ -135,6 +151,7 @@ var chatns = {
 	    success: function(data) {
 		chatns.msg_box.innerHTML = decodeURI(data);
 		chatns.scroll_down_msg_box();
+		chatns.update_unread_msg_cnt(uid, false);
 	    }
 	});
     },

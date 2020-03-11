@@ -698,3 +698,11 @@ p, ul {
     overflow: auto;
     border: 1px solid #0000000d;
 }
+
+.invisible {
+    display: none;
+}
+.unread_msg_alert {
+    font-size:12px;
+    color:#ff0000;
+}
