@@ -90,10 +90,10 @@ class ChatChannel(AsyncWebsocketConsumer):
             return
 
         unread_msgs = await self.get_unread_messages(uid)
-        if self.get_len(unread_msgs) == 0:
-            return
-
         msgs = await self.fill_msgs(unread_msgs)
+
+        if len(msgs) == 0:
+            return
 
         for user, channel in get_connected_user_list(uid):
             channel_layer = get_channel_layer()
