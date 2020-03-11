@@ -121,7 +121,9 @@ class ChatChannel(AsyncWebsocketConsumer):
 
         await self.channel_layer.group_add(CONNECTED_USR_GRP, self.channel_name)
         await self.accept()
-        await self.handle_status_update(self.scope['user'].chat_status)
+
+        if len(get_connected_user_list(self.scope['user'].id)) == 1:
+            await self.handle_status_update(self.scope['user'].chat_status)
 
     async def chat_message(self, event):
         await self.send(text_data=json.dumps(event))
