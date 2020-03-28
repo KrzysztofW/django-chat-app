@@ -81,9 +81,9 @@ var chatns = {
 	    h -= 12;
 	} else
 	    ampm = ' a.m.';
-	return n + ' ' + (today.getDay() + 1) + ', ' + today.getFullYear() + ', ' + h + ':' + chatns.add_zero(today.getMinutes()) + ampm;
+	return n + ' ' + today.getDate() + ', ' + today.getFullYear() + ', ' + h + ':' + chatns.add_zero(today.getMinutes()) + ampm;
 	{% else %}
-	return (today.getDay() + 1) + ' ' + n + ' ' + today.getFullYear() + ' ' + chatns.add_zero(h) + ':' + chatns.add_zero(today.getMinutes());
+	return today.getDate() + ' ' + n + ' ' + today.getFullYear() + ' ' + chatns.add_zero(h) + ':' + chatns.add_zero(today.getMinutes());
 	{% endif %}
     },
 
