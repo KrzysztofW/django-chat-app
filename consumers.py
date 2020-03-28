@@ -5,14 +5,30 @@ import json, pdb
 from channels.layers import get_channel_layer
 from django.contrib.auth import get_user_model
 from channels.db import database_sync_to_async
-from asgiref.sync import sync_to_async
+from asgiref.sync import sync_to_async, async_to_sync
 from . import models as chat_models
 from users import models as user_models
 from common.lgc_types import ChatWebSocketCmd, ChatStatus
+from django.conf import settings
+from aredis import StrictRedis
+from redis import StrictRedis as sync_StrictRedis
 
+redis_ns = ':chat'
 User = get_user_model()
-connected_users = [] # it must be a list to track users connected multiple times
 CONNECTED_USR_GRP = 'connected-users'
+redis_instance = None
+
+def reset_redis():
+    rinst = sync_StrictRedis(host=settings.REDIS_HOST,
+                             port=settings.REDIS_PORT, db=0)
+    keys = rinst.keys('l_*:chat')
+    p = rinst.pipeline()
+
+    p.multi()
+    for k in keys:
+        p.delete(k)
+    p.execute()
+    rinst.connection_pool.disconnect()
 
 def is_status_valid(status):
     for e in ChatStatus:
@@ -20,24 +36,111 @@ def is_status_valid(status):
             return True
     return False
 
-def get_connected_user(uid):
-    for u in connected_users:
-        if uid == u[0].id:
-            return u
-    return None, None
+async def redis_connect():
+    global redis_instance
+    if redis_instance is None:
+        redis_instance = StrictRedis(host=settings.REDIS_HOST,
+                                     port=settings.REDIS_PORT, db=0)
+    return redis_instance
 
-def get_connected_user_list(uid):
+async def add_connected_user(uid, channel_name, status):
+    uidns = str(uid) + redis_ns
+    r = await redis_connect()
+
+    async def add(p):
+        p.multi()
+        await p.lpush('l_' + uidns, channel_name)
+        await p.set('h_' + uidns, status)
+
+    await r.transaction(add, 'l_' + uidns, 'h_' + uidns)
+
+async def get_connected_user(uid):
+    r = await redis_connect()
+    uidns = str(uid) + redis_ns
+    status = await r.get('h_' + uidns)
+
+    if status is None:
+        return None, None
+
+    status = status.decode('utf-8')
+
+    rlen = await r.llen('l_' + uidns)
+    if rlen == 0:
+        return None, status
+    chann = await r.lindex('l_' + uidns, 0)
+    return chann.decode('utf-8'), status
+
+async def get_user_status(uid):
+    r = await redis_connect()
+    uidns = str(uid) + redis_ns
+    status = await r.get('h_' + uidns)
+    if status:
+        return status.decode('utf-8')
+    return None
+
+async def get_connected_user_list(uid):
+    r = await redis_connect()
+    uidns = str(uid) + redis_ns
     user_list = []
-    for u in connected_users:
-        if uid == u[0].id:
-            user_list.append(u)
+    status = await r.get('h_' + uidns)
+
+    if status is None:
+        return []
+
+    rlen = await r.llen('l_' + uidns)
+    for i in range(0, rlen):
+        channel = await r.lindex('l_' + uidns, i)
+        user_list.append((channel.decode('utf-8'), status.decode('utf-8')))
     return user_list
 
-def remove_connected_user(uid, channel_name):
-    for i in range(len(connected_users)):
-        if connected_users[i][0].id == uid and connected_users[i][1] == channel_name:
-            del connected_users[i]
-            return
+@async_to_sync
+async def get_connected_users():
+    res = {}
+    r = await redis_connect()
+    l = await r.keys('h_*' + redis_ns)
+
+    for e in l:
+        e = e.decode('utf-8')
+        i = e.replace('h_', '').replace(':chat', '')
+        s = await r.get(e)
+        res[int(i)] = s.decode('utf-8')
+    return res
+
+async def update_connected_user_status(uid, status):
+    r = await redis_connect()
+    await r.set('h_' + str(uid) + redis_ns, status)
+
+async def remove_connected_user_(uid, channel_name):
+    r = await redis_connect()
+    uidns = str(uid) + redis_ns
+
+    async with await r.pipeline() as p:
+        while 1:
+            try:
+                await p.watch('l_' + uidns, 'h_' + uidns)
+                rlen = await p.llen('l_' + uidns)
+                p.multi()
+                await p.lrem('l_' + uidns, 1, channel_name)
+                if rlen == 1:
+                    await p.delete('h_' + uidns)
+                await p.execute()
+                break
+            except WatchError:
+                continue
+
+async def remove_connected_user(uid, channel_name):
+    r = await redis_connect()
+    uidns = str(uid) + redis_ns
+
+    async def remove(p):
+        rlen = await p.llen('l_' + uidns)
+        p.multi()
+        await p.lrem('l_' + uidns, 1, channel_name)
+        if rlen == 1:
+            await p.delete('h_' + uidns)
+        rlen = await r.llen('l_' + uidns)
+
+    await r.transaction(remove, 'l_' + uidns, 'h_' + uidns)
 
 class ChatChannel(AsyncWebsocketConsumer):
     @database_sync_to_async
@@ -73,9 +176,7 @@ class ChatChannel(AsyncWebsocketConsumer):
 
         uid = self.scope['user'].id;
 
-        for user, channel_name in connected_users:
-            if uid == user.id:
-                user.chat_status = status
+        await update_connected_user_status(uid, status)
 
         await self.channel_layer.group_send(
             CONNECTED_USR_GRP, {
@@ -106,24 +207,24 @@ class ChatChannel(AsyncWebsocketConsumer):
 
 
     async def connect(self):
-        global connected_users
-
         if not self.scope['user'].is_authenticated:
             raise DenyConnection('invalid user')
 
-        self.scope['user'].chat_status = ChatStatus.OFFLINE.value
-        user, chann = get_connected_user(self.scope['user'].id)
-        if user is not None:
-            self.scope['user'].chat_status = user.chat_status
+        chat_status = ChatStatus.OFFLINE.value
+        chann, chat_status = await get_connected_user(self.scope['user'].id)
+
+        if chat_status is None:
+            chat_status = ChatStatus.from_db_name(self.scope['user'].last_chat_status)
         else:
-            self.scope['user'].chat_status = ChatStatus.from_db_name(self.scope['user'].last_chat_status)
-        connected_users.append((self.scope['user'], self.channel_name))
+            chat_status = chat_status
+        await add_connected_user(self.scope['user'].id, self.channel_name, chat_status)
 
         await self.channel_layer.group_add(CONNECTED_USR_GRP, self.channel_name)
         await self.accept()
+        conn_user = await get_connected_user_list(self.scope['user'].id)
 
-        if len(get_connected_user_list(self.scope['user'].id)) == 1:
-            await self.handle_status_update(self.scope['user'].chat_status)
+        if len(conn_user) == 1:
+            await self.handle_status_update(chat_status)
 
     async def chat_message(self, event):
         await self.send(text_data=json.dumps(event))
@@ -131,14 +232,17 @@ class ChatChannel(AsyncWebsocketConsumer):
     async def disconnect(self, close_code):
         self.channel_layer.group_discard(CONNECTED_USR_GRP, self.channel_name)
         uid = self.scope['user'].id
-        user_list = get_connected_user_list(uid)
-        remove_connected_user(uid, self.channel_name)
+        user_list = await get_connected_user_list(uid)
+        cur_status = await get_user_status(uid)
+
+        await remove_connected_user(uid, self.channel_name)
+        status = await get_user_status(uid)
 
         """The user may be still connected from a different device"""
-        if len(user_list) > 1:
+        if status is not None:
             return
-        self.scope['user'].last_chat_status = ChatStatus.to_db_name(user_list[0][0].chat_status)
 
+        self.scope['user'].last_chat_status = ChatStatus.to_db_name(cur_status)
         await self.save_object(self.scope['user'])
 
         await self.channel_layer.group_send(
@@ -151,7 +255,7 @@ class ChatChannel(AsyncWebsocketConsumer):
 
     async def msg_send_to(self, msg_obj, user):
         send_to_self = msg_obj.from_user == user
-        user_list = get_connected_user_list(user.id)
+        user_list = await get_connected_user_list(user.id)
 
         if len(user_list) == 0 and not send_to_self:
             msg_obj.unread = True
@@ -162,8 +266,8 @@ class ChatChannel(AsyncWebsocketConsumer):
         else:
             reply_tuid = None
 
-        for user, channel_name in user_list:
-            if user.chat_status == ChatStatus.OFFLINE.value and not send_to_self:
+        for channel_name, status in user_list:
+            if status == ChatStatus.OFFLINE.value and not send_to_self:
                 msg_obj.unread = True
                 continue
 
@@ -210,3 +314,5 @@ class ChatChannel(AsyncWebsocketConsumer):
         await self.msg_send_to(msg_obj, user)
         await self.msg_send_to(msg_obj, self.scope['user'])
         await self.save_object(msg_obj)
+
+reset_redis()
