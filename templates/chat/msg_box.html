@@ -2,7 +2,9 @@
 <div class="contact-profile">
   {% if cur_user %}
   <img id="contact_img_id" src="{% url 'user-img' cur_user.id %}">
-  <p style="line-height:60px;" id="contact_name_id">{% trans 'Conversation with ' %} {{ cur_user.first_name }} {{ cur_user.last_name }}</p>
+  {% with name=cur_user.first_name|add:' '|add:cur_user.last_name %}
+  <p style="line-height:60px;" id="contact_name_id">{{ name|truncatechars:30 }}</p>
+  {% endwith %}
   {% else %}
   <img id="contact_img_id">
   <p style="line-height:60px;" id="contact_name_id"></p>
@@ -14,8 +16,8 @@
   </div-->
 </div>
 <div class="messages" id="inner_msg_box_id">
-  {% if cur_user_msgs %}
   <ul>
+  {% if cur_user_msgs %}
     {% for msg in cur_user_msgs %}
     <li class="{% if request.user.id == msg.from_user.id %}sent{% else %}replies{% endif %}">
       <div>
@@ -27,8 +29,8 @@
       <p class="msg_p">{{ msg.text }}</p>
     </li>
     {% endfor %}
+    {% endif %}
   </ul>
-  {% endif %}
   {% if cur_user_new_msgs %}
   <ul>
     <div class="center_div">
