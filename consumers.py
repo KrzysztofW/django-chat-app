@@ -97,11 +97,17 @@ async def get_connected_user_list(uid):
 async def get_connected_users():
     res = {}
     r = await redis_connect()
-    l = await r.keys('h_*' + redis_ns)
+    h = await r.keys('h_*' + redis_ns)
 
-    for e in l:
+    for e in h:
         e = e.decode('utf-8')
         i = e.replace('h_', '').replace(':chat', '')
+
+        """check if user is really connected"""
+        l = await r.lrange('l_' + i + redis_ns, 0, 1)
+        if len(l) == 0:
+            continue
+
         s = await r.get(e)
         res[int(i)] = s.decode('utf-8')
     return res
