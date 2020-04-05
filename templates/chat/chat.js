@@ -18,11 +18,14 @@ var chatns = {
     month : ["Jan.", "Feb.", "March", "April", "May", "June", "July", "August", "Sep.", "Oct.", "Nov.", "Dec." ],
     {% endif %}
 
-    scroll_down_msg_box:function()
+    scroll_down_msg_box:function(val)
     {
 	var inner_msg_box = document.getElementById('inner_msg_box_id');
 
-	inner_msg_box.scrollTop = inner_msg_box.scrollHeight;
+	if (val)
+	    inner_msg_box.scrollTop = val;
+	else
+	    inner_msg_box.scrollTop = inner_msg_box.scrollHeight;
     },
 
     truncate_string:function(str, num)
@@ -50,7 +53,7 @@ var chatns = {
 	chatns.unread_msg_tim = 0;
     },
     unread_msg_cur_user_clear:function() {
-	if (chatns.unread_msg_tim)
+	if (chatns.unread_msg_tim || chatns.unread_msg_cnt.size == 0)
 	    return;
 
 	chatns.has_focus = true;
@@ -104,7 +107,7 @@ var chatns = {
     general_msg_box_show:function()
     {
 	chatns.msg_box.innerHTML = chatns.general_msg_box_hdr + chatns.general_msg_box + chatns.general_msg_box_footer;
-	chatns.scroll_down_msg_box();
+	chatns.scroll_down_msg_box(0);
     },
 
     general_msg_box_update:function(username, img, action)
@@ -137,6 +140,8 @@ var chatns = {
 	$('.message-input input').val(null);
     },
 
+    msg_pos : 0,
+
     set_active:function(elem, uid)
     {
 	$('li').each(function(i) {
@@ -151,21 +156,23 @@ var chatns = {
 	    return;
 	}
 
-	var id = '#user_msg_preview_' + uid;
-	var user_msg_preview = $(id);
+	var username = $('#user_name_' + uid);
 
-	if (typeof user_msg_preview.val() !== 'undefined')
-	    user_msg_preview.text('');
+	if (typeof username.val() !== 'undefined')
+	    username.removeClass('username_unread_msg');
 
+	chatns.msg_pos = 0;
 	$.ajax({
 	    url: "{% url 'chat-load-msgs' %}",
 	    data: {
-		'uid': uid
+		'uid': uid,
+		'pos': chatns.msg_pos,
 	    },
 	    success: function(data) {
 		chatns.msg_box.innerHTML = decodeURI(data);
-		chatns.scroll_down_msg_box();
+		chatns.scroll_down_msg_box(0);
 		chatns.update_unread_msg_cnt(uid, false);
+		chatns.msg_pos += {{ msg_limit }};
 	    }
 	});
     },
@@ -190,6 +197,57 @@ var chatns = {
 	    'cmd': {{ ws_cmds.STATUS_UPDATE.value }},
 	    'status': status,
 	}));
+    },
+
+    msg_box_loading : false,
+
+    msg_box_onscroll:function(elem)
+    {
+	if (chatns.msg_box_loading)
+	    return;
+
+	if (elem.scrollTop != 0)
+	    return;
+
+	var loading = document.getElementById('loading_id');
+
+	chatns.msg_box_loading = true;
+	loading.classList.remove('invisible');
+
+	$.ajax({
+	    url: "{% url 'chat-load-msgs' %}",
+	    data: {
+		'uid': chatns.cur_tuid,
+		'pos': chatns.msg_pos,
+		'load': 1,
+	    },
+	    success: function(data) {
+		var inner_msg_box = document.getElementById('inner_msg_box_id');
+		var mbox = inner_msg_box.children[1];
+		var hidden_cur_msg_box = document.getElementById('hidden_cur_msg_box_id');
+		var data = decodeURI(data);
+
+		hidden_cur_msg_box.firstElementChild.innerHTML = data;
+
+		mbox.innerHTML = data + mbox.innerHTML;
+		chatns.msg_pos += {{ msg_limit }};
+		chatns.msg_box_loading = false;
+
+		/* set scrolling position */
+		var pos = hidden_cur_msg_box.clientHeight;
+
+		if (pos > 500)
+		    pos += 500;
+
+		if (data.length > 5)
+		    chatns.scroll_down_msg_box(pos);
+
+		loading.classList.add('invisible');
+	    },
+	    error: function() {
+		chatns.msg_box_loading = false;
+	    }
+	});
     },
 }
 
@@ -273,19 +331,37 @@ chatns.chat_socket.onmessage = function(e) {
 	if (action != 'left' || uid != {{ request.user.id }})
 	    chatns.general_msg_box_update(user_name.text(), user_img, action);
 	return;
+    case {{ ws_cmds.NEW_MSGS.value }}:
+	var uids = JSON.parse(data['uids_msgs']);
+	var prefix = 'user_name_'
+
+	if (uids.length)
+	    chatns.unread_msg_elem.classList.remove('invisible');
+
+	for (i = 0; i < uids.length; i++) {
+	    var username = prefix + uids[i];
+	    var elem = document.getElementById(username);
+
+	    if (typeof elem === 'undefined')
+		continue;
+	    elem.classList.add('username_unread_msg');
+	    if (chatns.cur_tuid != ids[i])
+		chatns.update_unread_msg_cnt(ids[i], true);
+	}
+	return;
     default:
 	break;
     }
 
     if (chatns.cur_tuid != uid && chatns.cur_tuid != data['reply_tuid']) {
-	var user_msg_preview = $('#user_msg_preview_' + uid);
+	var username = $('#user_name_' + uid);
 
-	if (typeof user_msg_preview.val() === 'undefined')
+	if (typeof username.val() === 'undefined')
 	    return;
 
 	var msg = chatns.truncate_string(message, 80);
 
-	user_msg_preview.text(msg);
+	username.addClass('username_unread_msg');
 	chatns.notify_me(user_name.text(), uid, user_img, msg);
 	return;
     }
@@ -301,7 +377,7 @@ chatns.chat_socket.onmessage = function(e) {
 
     $('<li class="' + msg_class + '"><div><img src="' + user_img.attr('src') + '"><div class="msg_div"><b>' + user_name.text() + '</b> <span class="msg_span">' + chatns.get_current_date() + '</span></div></div><br><p class="msg_p">' + message + '</p></li>').appendTo($('.messages ul'));
     $('.message-input input').val(null);
-    chatns.scroll_down_msg_box();
+    chatns.scroll_down_msg_box(0);
 };
 
 $("#profile-img").click(function() {

@@ -91,6 +91,7 @@
     </div>
   </div>
   <div class="content" onmouseout="chatns.has_focus=false" onmouseover="chatns.unread_msg_cur_user_clear()">
+    <div style="position:absolute;margin:-1000px -1000px;" class="messages" id="hidden_cur_msg_box_id"><ul></ul></div>
     <span id="msg_box_id">
       {% include 'chat/msg_box.html' %}
     </span>

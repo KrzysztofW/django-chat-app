@@ -18,33 +18,38 @@ from django.http import JsonResponse
 from asgiref.sync import async_to_sync
 
 User = get_user_model()
+MSG_LIMIT = 10
 
 def get_user_msgs(request):
     uid = request.GET.get('uid')
+    pos = request.GET.get('pos', '0')
 
+    pos = int(pos)
     if uid is None:
-        return None, None, None
+        return None, None
     try:
         user = User.objects.get(id=uid)
     except:
-        return None, None, None
+        return None, None
 
     msgs = (chat_models.Message.objects.filter(from_user=user, to_user=request.user)|
             chat_models.Message.objects.filter(from_user=request.user,
                                                to_user=user)).order_by('date')
-    return user, msgs.filter(unread=False), msgs.filter(unread=True)
+    total = len(msgs)
+    pos_end = max(total - pos, 0)
+    pos = max(pos_end - MSG_LIMIT, 0)
+
+    return user, msgs[pos:pos_end]
 
 def __get_msgs_view(request):
     chann, status = async_to_sync(get_connected_user)(request.user.id)
-    from_user, msgs, new_msgs = get_user_msgs(request)
+    from_user, msgs = get_user_msgs(request)
 
-    if status is not None and status == ChatStatus.OFFLINE.value:
-        new_msgs = None
-
+    if msgs and len(msgs) == 0:
+        return None
     return {
         'cur_user': from_user,
         'cur_user_msgs': msgs,
-        'cur_user_new_msgs': new_msgs,
     }
 
 def mark_msgs_as_read(msgs):
@@ -54,8 +59,15 @@ def mark_msgs_as_read(msgs):
 @login_required
 def get_msgs_view(request):
     context = __get_msgs_view(request)
-    ret = render(request, 'chat/msg_box.html', context)
-    mark_msgs_as_read(context['cur_user_new_msgs'])
+
+    if context == None:
+        return http.HttpResponse('')
+    if request.GET.get('load') is not None:
+        tpl = 'chat/inner_msg_box.html'
+    else:
+        tpl = 'chat/msg_box.html'
+    ret = render(request, tpl, context)
+
     return ret
 
 @login_required
@@ -73,10 +85,10 @@ def chat_view(request):
     context['users'] = users
     context['connected_users'] = get_connected_users()
     context['title'] = _('Chat')
+    context['msg_limit'] = MSG_LIMIT
     context['ws_cmds'] = ChatWebSocketCmd
 
     ret = render(request, 'chat/chat.html', context)
-    mark_msgs_as_read(context['cur_user_new_msgs'])
     return ret
 
 @login_required
@@ -84,7 +96,7 @@ def get_user_statuses_view(request):
     statuses = []
 
     for id, s in get_connected_users():
-        if s != ChatStatus.OFFLINE.value:
+        if s != ChatStatus.OFFLINE.value and id is not None:
             statuses.append(id, s)
     data = {
         'statutes': statuses,

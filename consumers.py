@@ -158,13 +158,15 @@ class ChatChannel(AsyncWebsocketConsumer):
         object.save()
 
     @database_sync_to_async
-    def get_unread_messages(self, uid):
-        msgs = chat_models.Message.objects.filter(to_user=uid, unread=True)
-        return msgs.all()
+    def get_uids_msgs(self, user):
+        uids = []
+        msgs = chat_models.Message.objects.filter(to_user=user.id,
+                                                  date__gte=user.chat_profile.offline_date)
+        msgs = msgs.values('from_user').distinct()
 
-    @sync_to_async
-    def get_len(self, objs):
-        return objs.count()
+        for m in msgs:
+            uids.append(m['from_user'])
+        return uids
 
     @sync_to_async
     def fill_msgs(self, objs):
@@ -176,11 +178,23 @@ class ChatChannel(AsyncWebsocketConsumer):
             })
         return msgs
 
+    @sync_to_async
+    def create_profile(self, user):
+        if hasattr(user, 'chat_profile'):
+            return
+
+        profile = chat_models.UserProfile()
+        profile.user = user
+        profile.save()
+        user.chat_profile = profile
+        user.save()
+
     async def handle_status_update(self, status):
         if not is_status_valid(status):
             return
 
-        uid = self.scope['user'].id;
+        user = self.scope['user']
+        uid = user.id
 
         await update_connected_user_status(uid, status)
 
@@ -196,38 +210,40 @@ class ChatChannel(AsyncWebsocketConsumer):
         if status == ChatStatus.OFFLINE.value:
             return
 
-        unread_msgs = await self.get_unread_messages(uid)
-        msgs = await self.fill_msgs(unread_msgs)
-
-        if len(msgs) == 0:
+        uids_msgs = await self.get_uids_msgs(user)
+        if len(uids_msgs) == 0:
             return
 
-        for user, channel in get_connected_user_list(uid):
-            channel_layer = get_channel_layer()
-            await channel_layer.send(channel_name, {
+        user_list = await get_connected_user_list(uid)
+        uids_msgs = json.dumps(uids_msgs)
+
+        for channel_name, status in user_list:
+            await self.channel_layer.send(channel_name, {
                 'type': 'chat.message',
                 'cmd': ChatWebSocketCmd.NEW_MSGS.value,
-                'uid': self.scope['user'].id,
-                'messages': msgs,
+                'uid': uid,
+                'uids_msgs': uids_msgs,
             })
 
-
     async def connect(self):
-        if not self.scope['user'].is_authenticated:
+        user = self.scope['user']
+
+        if not user.is_authenticated:
             raise DenyConnection('invalid user')
 
         chat_status = ChatStatus.OFFLINE.value
-        chann, chat_status = await get_connected_user(self.scope['user'].id)
+        chann, chat_status = await get_connected_user(user.id)
+        await self.create_profile(user)
 
         if chat_status is None:
-            chat_status = ChatStatus.from_db_name(self.scope['user'].last_chat_status)
+            chat_status = ChatStatus.from_db_name(user.chat_profile.last_chat_status)
         else:
             chat_status = chat_status
-        await add_connected_user(self.scope['user'].id, self.channel_name, chat_status)
+        await add_connected_user(user.id, self.channel_name, chat_status)
 
         await self.channel_layer.group_add(CONNECTED_USR_GRP, self.channel_name)
         await self.accept()
-        conn_user = await get_connected_user_list(self.scope['user'].id)
+        conn_user = await get_connected_user_list(user.id)
 
         if len(conn_user) == 1:
             await self.handle_status_update(chat_status)
@@ -236,8 +252,10 @@ class ChatChannel(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps(event))
 
     async def disconnect(self, close_code):
+        user = self.scope['user']
+        uid = user.id
+
         self.channel_layer.group_discard(CONNECTED_USR_GRP, self.channel_name)
-        uid = self.scope['user'].id
         user_list = await get_connected_user_list(uid)
         cur_status = await get_user_status(uid)
 
@@ -248,8 +266,9 @@ class ChatChannel(AsyncWebsocketConsumer):
         if status is not None:
             return
 
-        self.scope['user'].last_chat_status = ChatStatus.to_db_name(cur_status)
-        await self.save_object(self.scope['user'])
+        user.chat_profile.last_chat_status = ChatStatus.to_db_name(cur_status)
+        user.chat_profile.offline_date = timezone.now()
+        await self.save_object(user.chat_profile)
 
         await self.channel_layer.group_send(
             CONNECTED_USR_GRP, {
@@ -264,7 +283,6 @@ class ChatChannel(AsyncWebsocketConsumer):
         user_list = await get_connected_user_list(user.id)
 
         if len(user_list) == 0 and not send_to_self:
-            msg_obj.unread = True
             return
 
         if msg_obj.from_user == user:
@@ -272,14 +290,11 @@ class ChatChannel(AsyncWebsocketConsumer):
         else:
             reply_tuid = None
 
+        channel_layer = get_channel_layer()
         for channel_name, status in user_list:
             if status == ChatStatus.OFFLINE.value and not send_to_self:
-                msg_obj.unread = True
                 continue
 
-            if not send_to_self:
-                msg_obj.unread = False
-            channel_layer = get_channel_layer()
             await channel_layer.send(channel_name, {
                 'type': 'chat.message',
                 'cmd': ChatWebSocketCmd.MSG.value,
