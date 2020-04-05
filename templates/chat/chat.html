@@ -15,10 +15,11 @@
 	  <source src="{% static 'chat/bell.ogg' %}" type="audio/ogg">
 	  <source src="{% static 'chat/bell.mp3' %}" type="audio/mpeg">
 	</audio>
-
 	<img id="profile-img" src="{% url 'user-img' request.user.id %}" class="offline" alt="" />
 	<p id="user_name_{{ request.user.id }}">{{ request.user.first_name }} {{ request.user.last_name }}</p>
-	<p id="unread_msgs_id" class="unread_msg_alert invisible"><b>{% trans 'You have unread messages' %}</b></p>
+	<p id="unread_msgs_id" class="unread_msg_alert invisible">
+	  <b>{% trans 'You have unread messages' %}</b>
+	</p>
 	<!-- i class="fa fa-chevron-down expand-button" aria-hidden="true"></i-->
 	<div id="status-options">
 	  <ul class="nolist">
@@ -89,7 +90,7 @@
       <button id="settings"><i class="fa fa-cog fa-fw" aria-hidden="true"></i> <span>Settings</span></button>
     </div>
   </div>
-  <div class="content">
+  <div class="content" onmouseout="chatns.has_focus=false" onmouseover="chatns.unread_msg_cur_user_clear()">
     <span id="msg_box_id">
       {% include 'chat/msg_box.html' %}
     </span>

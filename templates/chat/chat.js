@@ -9,6 +9,8 @@ var chatns = {
     msg_box : document.getElementById('msg_box_id'),
     unread_msg_cnt : new Set(),
     unread_msg_elem : document.getElementById('unread_msgs_id'),
+    unread_msg_tim : 0,
+    has_focus : true,
 
     {% if LANGUAGE_CODE == 'fr' %}
     month : ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"],
@@ -41,6 +43,18 @@ var chatns = {
 	    return;
 	}
 	chatns.unread_msg_elem.classList.remove('invisible');
+    },
+
+    unread_msg_cur_user_clear_cb:function() {
+	chatns.update_unread_msg_cnt(chatns.cur_tuid, false);
+	chatns.unread_msg_tim = 0;
+    },
+    unread_msg_cur_user_clear:function() {
+	if (chatns.unread_msg_tim)
+	    return;
+
+	chatns.has_focus = true;
+	chatns.unread_msg_tim = setTimeout(chatns.unread_msg_cur_user_clear_cb, 3000);
     },
 
     notify_me:function(user_name, uid, img, msg) {
@@ -278,7 +292,7 @@ chatns.chat_socket.onmessage = function(e) {
     if (uid == {{ request.user.id }})
 	msg_class = 'sent';
     else {
-	if (!document.hasFocus()) {
+	if (!chatns.has_focus) {
 	    var msg = chatns.truncate_string(message, 80);
 	    chatns.notify_me(user_name.text(), uid, user_img, msg);
 	}
