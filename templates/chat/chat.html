@@ -6,6 +6,26 @@
 {% get_current_language as LANGUAGE_CODE %}
 
 {% block content %}
+<div class="fullwindow invisible" id="channel_box_id">
+  <div class="d-flex justify-content-center">
+    <div class="card">
+      <div class="card-header d-flex" style="background-color:rgba(0,181,184,.3);">
+	<div class="flex-grow-1">{% trans 'Add a channel' %}</div>
+	<div class=""><a href="#" onclick="return chatns.channel_close_win();">X</a></div>
+      </div>
+      <div class="card-body">
+	<h5 class="card-title">{% trans 'Create a new channel or add an existing one' %}</h5>
+	<div class="input-group custom-search-form">
+	  <input type="text" value="" class="form-control" id="add_channel_id" placeholder="{% trans 'Create...' %}">
+	  &nbsp;<a class="btn btn-info btn-lgc mb-4" onclick="return chatns.add_channel_close_win();" href="#">{% trans 'Add' %}</a>
+	  <span id="add_channel_error_id" class="invalid-feedback invisible"><div id="add_channel_error_div"><strong></strong></div></span>
+	</div>
+	<div id="other_channels_id">{% include 'chat/channel_list.html' %}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="frame">
   <div id="sidepanel">
     <div id="profile">
@@ -57,15 +77,34 @@
     </div>
     <div id="contacts">
       <ul class="nolist" id="contact_list_id">
-	<li id="contact_id_general" class="contact{% if not cur_user %} active{% endif %}" onclick="chatns.set_active(this, 'general')" style='padding:10px;'>
+
+	<li id="contact_id_general" class="contact{% if not cur_user %} active{% endif %}" onclick="chatns.set_active(this, 'general')" style="padding:10px;">
 	  <div class="wrap">
 	    <div class="meta">
-	      <p class="name general_room">
-		<i class="fas fa-home fa-2x" style="margin:-5px;"></i><div style="margin:-25px 0 0 45px;"><b>{% trans 'General' %}</b></div>
-	      </p>
+	      <i class="fas fa-home fa-2x" style="margin:-5px;"></i>
+	      <div style="margin:-23px 0 0 45px;"><b>{% trans 'General' %}</b></div>
 	    </div>
 	  </div>
 	</li>
+
+	{% for c in my_channels %}
+	<li id="contact_id_channel_{{ c.id }}" class="contact" onclick="chatns.set_active(this, 'channel')" style="padding:10px;" onmouseover="chatns.channel_remove_btn(this, false);" onmouseout="chatns.channel_remove_btn(this, true);">
+	  <div class="wrap">
+	    <div class="meta">
+	      <i class="fas fa-hashtag fa-2x" style="margin:-5px;"></i>
+	      <div style="margin:-23px 0 0 45px;">
+		<b>{{ c.name }}</b>&nbsp;
+		<div style="display:none;">
+		  <a href="" onclick="return chatns.remove_channel({{ c.id }});">
+		    <i class="fas fa-minus-circle"></i>
+		  </a>
+		</div>
+	      </div>
+	    </div>
+	  </div>
+	</li>
+
+	{% endfor %}
 	<li><hr></li>
 
 	{% for u in users %}

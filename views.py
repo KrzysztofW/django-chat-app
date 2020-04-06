@@ -87,9 +87,10 @@ def chat_view(request):
     context['title'] = _('Chat')
     context['msg_limit'] = MSG_LIMIT
     context['ws_cmds'] = ChatWebSocketCmd
+    context['my_channels'] = request.user.channel_set.all()
+    context['other_channels'] = chat_models.Channel.objects.exclude(users=request.user).all()
 
-    ret = render(request, 'chat/chat.html', context)
-    return ret
+    return render(request, 'chat/chat.html', context)
 
 @login_required
 def get_user_statuses_view(request):
@@ -121,3 +122,67 @@ def get_my_status(request):
     }
 
     return JsonResponse(data)
+
+@login_required
+def add_channel(request):
+    chann_name = request.GET.get('name')
+
+    if chann_name is None or chann_name == '':
+        return http.HttpResponseBadRequest()
+
+    channel = chat_models.Channel()
+    channel.name = chann_name
+    error = ''
+
+    try:
+        channel.save()
+        channel.users.add(request.user)
+    except Exception as e:
+        if e.args[0] == 1062:
+            error = _('This channel already exists')
+        else:
+            error = e.args[1]
+
+    data = {
+        'id': channel.id,
+        'err': error,
+    }
+
+    return JsonResponse(data)
+
+@login_required
+def remove_channel(request):
+    chann_id = request.GET.get('id')
+
+    try:
+        chann = chat_models.Channel.objects.get(id=chann_id)
+    except:
+        return http.HttpResponseBadRequest()
+
+    chann.users.remove(request.user)
+    if chann.users.count() == 0:
+        chann.delete()
+
+    return http.HttpResponse()
+
+@login_required
+def list_channels(request):
+    context = {
+        'other_channels' : chat_models.Channel.objects.exclude(users=request.user).all(),
+    }
+    return render(request, 'chat/channel_list.html', context)
+
+@login_required
+def join_channel(request):
+    chann_id = request.GET.get('id')
+
+    if id is None:
+        return http.Http404
+
+    try:
+        channel = chat_models.Channel.objects.get(id=chann_id)
+    except:
+        return http.Http404
+
+    channel.users.add(request.user)
+    return http.HttpResponse()

@@ -177,8 +177,132 @@ var chatns = {
 	});
     },
 
+    channel_close_win:function()
+    {
+	var channel_box = document.getElementById('channel_box_id');
+
+	channel_box.classList.add('invisible');
+	return false;
+    },
+
+    add_channel_set_error:function(error)
+    {
+	var error_elem = document.getElementById('add_channel_error_id');
+	var channel_name = document.getElementById('add_channel_id');
+	var error_div = document.getElementById('add_channel_error_div');
+
+	error_elem.classList.remove('invisible');
+	channel_name.classList.add('is-invalid');
+	error_div.innerHTML = '<strong>' + error + '</strong>';
+    },
+    add_channel_unset_error:function()
+    {
+	var error_elem = document.getElementById('add_channel_error_id');
+	var channel_name = document.getElementById('add_channel_id');
+	var error_div = document.getElementById('add_channel_error_div');
+
+	error_elem.classList.add('invisible');
+	channel_name.classList.remove('is-invalid');
+	error_div.innerHTML = '';
+	channel_name.value = '';
+    },
+
+    add_channel_to_my_list:function(id, name)
+    {
+	$('<li id="contact_id_channel_' + id + '" class="contact" onclick="chatns.set_active(this, \'channel\')" style="padding:10px;" onmouseover="chatns.channel_remove_btn(this, false);" onmouseout="chatns.channel_remove_btn(this, true);"><div class="wrap"><div class="meta"><i class="fas fa-hashtag fa-2x" style="margin:-5px;"></i><div style="margin:-23px 0 0 45px;"><b>' + name + '</b>&nbsp;<div style="display:none;"><a href="" onclick="return chatns.remove_channel(' + id + ');"><i class="fas fa-minus-circle"></i></a></div></div></div></div></li>').insertAfter($('#contact_id_general'));
+    },
+    add_channel_close_win:function()
+    {
+	var channel_box = document.getElementById('channel_box_id');
+	var channel_name = document.getElementById('add_channel_id');
+
+	$.ajax({
+	    url: "{% url 'chat-add-channel' %}",
+	    data: {
+		'name': add_channel_id.value,
+	    },
+	    success: function(d) {
+		var general_li = document.getElementById('contact_id_general');
+
+		if (d['err']) {
+		    chatns.add_channel_set_error(d['err']);
+		    return;
+		}
+		channel_box.classList.add('invisible');
+		chatns.add_channel_to_my_list(d['id'], add_channel_id.value);
+		add_channel_id.value = '';
+	    },
+	    error: function() {
+		chatns.add_channel_set_error("{% trans 'Cannot add channel' %}");
+	    }
+	});
+
+	return false;
+    },
+    join_channel:function(id, name)
+    {
+	$.ajax({
+	    url: "{% url 'chat-join-channel' %}",
+	    data: {
+		'id': id
+	    },
+	    success: function() {
+		var channel_box = document.getElementById('channel_box_id');
+
+		channel_box.classList.add('invisible');
+		chatns.add_channel_to_my_list(id, name);
+		add_channel_id.value = '';
+	    },
+	    error: function() {
+		chatns.add_channel_set_error("{% trans 'Cannot join channel' %}");
+	    }
+	});
+
+	return false;
+    },
+    channel_remove_btn:function(item, remove)
+    {
+	if (remove) {
+	    chatns.add_channel_unset_error();
+	    style = 'display:none';
+	} else
+	    style = 'display:inline';
+	item.children[0].children[0].children[1].children[1].style = style;
+
+    },
+    remove_channel:function(id)
+    {
+	$.ajax({
+	    url: "{% url 'chat-remove-channel' %}",
+	    data: {
+		'id': id
+	    },
+	    success: function(d) {
+		document.getElementById('contact_id_channel_' + id).remove();
+	    },
+	});
+	return false;
+    },
     add_channel:function()
     {
+	var channel_box = document.getElementById('channel_box_id');
+	var other_channels = document.getElementById('other_channels_id');
+
+	other_channels.innerHTML = "{% trans 'loading...' %}";
+
+	$.ajax({
+	    url: "{% url 'chat-list-channels' %}",
+	    success: function(data) {
+		other_channels.innerHTML = data;
+		other_channels.classList.remove('username_unread_msg');
+	    },
+	    error: function() {
+		other_channels.innerHTML = "{% trans 'cannot get channel list' %}";
+		other_channels.classList.add('username_unread_msg');
+	    },
+	});
+
+	channel_box.classList.remove('invisible');
     },
 
     play_sound:function()

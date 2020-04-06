@@ -14,7 +14,7 @@ User = get_user_model()
 
 class Channel(models.Model):
     is_private = models.BooleanField(_('Private'), default=False)
-    name = models.CharField(_('Channel'), max_length=128)
+    name = models.CharField(_('Channel'), max_length=128, unique=True)
     users = models.ManyToManyField(User, verbose_name=_('Participants'),
                                    related_name='channel_set')
 
