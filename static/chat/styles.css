@@ -728,3 +728,8 @@ p, ul {
     left:0px;
     z-index:1000;
 }
+
+.div_window {
+    background-color:rgba(19,179,199,1);
+    color:#ffffff;
+}

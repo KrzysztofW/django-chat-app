@@ -1,7 +1,13 @@
 {% load i18n %}<br>
 {% if other_channels.count %}
 <p class="card-text"><strong>{% trans 'Available Channels' %}</strong> (click to join):</p>
-{% for c in other_channels %}
-<a href="#" onclick="chatns.join_channel({{ c.id }}, '{{ c.name }}')">{{ c.name }}</a><br>
-{% endfor %}
+<table class="table">
+  {% for c in other_channels %}
+  <tr>
+    <th scope="row">
+      <a href="#" onclick="chatns.join_channel({{ c.id }}, '{{ c.name }}')">{{ c.name }}</a><br>
+    </th>
+  </tr>
+  {% endfor %}
+</table>
 {% endif %}
