@@ -20,36 +20,48 @@ from asgiref.sync import async_to_sync
 User = get_user_model()
 MSG_LIMIT = 10
 
-def get_user_msgs(request):
+def get_msgs(request):
     uid = request.GET.get('uid')
     pos = request.GET.get('pos', '0')
+    is_channel = request.GET.get('is_channel')
+    user = None
+    channel = None
 
     pos = int(pos)
     if uid is None:
-        return None, None
-    try:
-        user = User.objects.get(id=uid)
-    except:
-        return None, None
+        return None, None, None
 
-    msgs = (chat_models.Message.objects.filter(from_user=user, to_user=request.user)|
-            chat_models.Message.objects.filter(from_user=request.user,
-                                               to_user=user)).order_by('date')
+    if is_channel == 'false':
+        try:
+            user = User.objects.get(id=uid)
+        except:
+            return None, None, None
+        msgs = (chat_models.Message.objects.filter(from_user=user, to_user=request.user)|
+                chat_models.Message.objects.filter(from_user=request.user,
+                                                   to_user=user)).order_by('date')
+    else:
+        try:
+            channel = chat_models.Channel.objects.get(id=uid)
+        except:
+            return None, None, None
+        msgs = chat_models.Message.objects.filter(channel__id=uid).order_by('date')
+
     total = len(msgs)
     pos_end = max(total - pos, 0)
     pos = max(pos_end - MSG_LIMIT, 0)
 
-    return user, msgs[pos:pos_end]
+    return user, channel, msgs[pos:pos_end]
 
 def __get_msgs_view(request):
     chann, status = async_to_sync(get_connected_user)(request.user.id)
-    from_user, msgs = get_user_msgs(request)
+    from_user, channel, msgs = get_msgs(request)
 
     if msgs and len(msgs) == 0:
         return None
     return {
-        'cur_user': from_user,
-        'cur_user_msgs': msgs,
+        'user': from_user,
+        'channel': channel,
+        'msgs': msgs,
     }
 
 def mark_msgs_as_read(msgs):
@@ -66,9 +78,7 @@ def get_msgs_view(request):
         tpl = 'chat/inner_msg_box.html'
     else:
         tpl = 'chat/msg_box.html'
-    ret = render(request, tpl, context)
-
-    return ret
+    return render(request, tpl, context)
 
 @login_required
 def chat_view(request):

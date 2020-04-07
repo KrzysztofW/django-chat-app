@@ -154,6 +154,10 @@ class ChatChannel(AsyncWebsocketConsumer):
         return User.objects.get(id=uid)
 
     @database_sync_to_async
+    def get_chat_channel(self, uid):
+        return chat_models.Channel.objects.get(id=uid)
+
+    @database_sync_to_async
     def save_object(self, object):
         object.save()
 
@@ -165,7 +169,7 @@ class ChatChannel(AsyncWebsocketConsumer):
         msgs = msgs.values('from_user').distinct()
 
         for m in msgs:
-            uids.append(m['from_user'])
+            uids.append((m['from_user'], False))
         return uids
 
     @sync_to_async
@@ -177,6 +181,13 @@ class ChatChannel(AsyncWebsocketConsumer):
                 'text': m.text
             })
         return msgs
+
+    @sync_to_async
+    def obj_to_list(self, objs):
+        l = []
+        for o in objs.all():
+            l.append(o)
+        return l
 
     @sync_to_async
     def create_profile(self, user):
@@ -290,18 +301,37 @@ class ChatChannel(AsyncWebsocketConsumer):
         else:
             reply_tuid = None
 
-        channel_layer = get_channel_layer()
         for channel_name, status in user_list:
             if status == ChatStatus.OFFLINE.value and not send_to_self:
                 continue
 
-            await channel_layer.send(channel_name, {
+            await self.channel_layer.send(channel_name, {
                 'type': 'chat.message',
                 'cmd': ChatWebSocketCmd.MSG.value,
                 'uid': self.scope['user'].id,
                 'reply_tuid': reply_tuid,
                 'message': msg_obj.text,
             })
+
+    async def msg_send_to_users(self, msg_obj, users):
+        users = await self.obj_to_list(users)
+
+        for u in users:
+            user_list = await get_connected_user_list(u.id)
+
+            for channel_name, status in user_list:
+                if status == ChatStatus.OFFLINE.value:
+                    continue
+
+                await self.channel_layer.send(channel_name, {
+                    'type': 'chat.message',
+                    'cmd': ChatWebSocketCmd.MSG.value,
+                    'uid': self.scope['user'].id,
+                    'cid': msg_obj.channel.id,
+                    'reply_tuid': '',
+                    'is_channel': 1,
+                    'message': msg_obj.text,
+                })
 
     async def receive(self, text_data):
         if not self.scope['user'].is_authenticated:
@@ -316,24 +346,32 @@ class ChatChannel(AsyncWebsocketConsumer):
 
             message = text_data_json['msg']
             tuid = text_data_json['tuid']
+            is_channel = text_data_json['is_channel']
         except:
-            return
-
-        try:
-            user = await self.get_user(tuid)
-        except:
-            return
-
-        if user.id == self.scope['user'].id:
             return
 
         msg_obj = chat_models.Message()
         msg_obj.text = message
         msg_obj.from_user = self.scope['user']
-        msg_obj.to_user = user
 
-        await self.msg_send_to(msg_obj, user)
-        await self.msg_send_to(msg_obj, self.scope['user'])
+        if is_channel == False:
+            try:
+                user = await self.get_user(tuid)
+            except:
+                return
+            if user.id == self.scope['user'].id:
+                return
+            msg_obj.to_user = user
+            await self.msg_send_to(msg_obj, user)
+            await self.msg_send_to(msg_obj, self.scope['user'])
+        else:
+            try:
+                channel = await self.get_chat_channel(tuid)
+            except:
+                return
+            msg_obj.channel = channel
+            await self.msg_send_to_users(msg_obj, channel.users)
+
         await self.save_object(msg_obj)
 
 reset_redis()

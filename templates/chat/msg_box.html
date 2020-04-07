@@ -1,10 +1,12 @@
 {% load custom_tags %}{% load static %}{% load i18n %}
 <div class="contact-profile">
-  {% if cur_user %}
-  <img id="contact_img_id" src="{% url 'user-img' cur_user.id %}">
-  {% with name=cur_user.first_name|add:' '|add:cur_user.last_name %}
+  {% if user %}
+  <img id="contact_img_id" src="{% url 'user-img' user.id %}">
+  {% with name=user.first_name|add:' '|add:user.last_name %}
   <p style="line-height:60px;" id="contact_name_id">{{ name|truncatechars:30 }}</p>
   {% endwith %}
+  {% elif channel %}
+  <p style="line-height:60px;" id="contact_name_id">&nbsp;&nbsp;#{{ channel.name|truncatechars:30 }}</p>
   {% else %}
   <img id="contact_img_id">
   <p style="line-height:60px;" id="contact_name_id"></p>
@@ -15,27 +17,8 @@
     <span class="center_span">{% trans 'Loading' %}</span>
   </div>
   <ul>
-    {% if cur_user_msgs %}
+    {% if msgs %}
     {% include 'chat/inner_msg_box.html' %}
     {% endif %}
   </ul>
-  {% if cur_user_new_msgs %}
-  <ul>
-    <div class="center_div_sep">
-      <span class="center_span">{% trans 'New messages' %}</span>
-    </div>
-    <hr class="hr_separator">
-    {% for msg in cur_user_new_msgs %}
-    <li class="{% if request.user.id == msg.from_user.id %}sent{% else %}replies{% endif %}">
-      <div>
-	<img src="{% url 'user-img' msg.from_user.id %}" alt="" />
-	<div class="msg_div">
-	  <b>{{ msg.from_user.first_name }} {{ msg.from_user.last_name }}</b>
-	  <span class="msg_span">{{ msg.date }}</span></div>
-      </div><br>
-      <p class="msg_p">{{ msg.text }}</p>
-    </li>
-    {% endfor %}
-  </ul>
-  {% endif %}
 </div>

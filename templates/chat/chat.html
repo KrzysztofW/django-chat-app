@@ -78,7 +78,7 @@
     <div id="contacts">
       <ul class="nolist" id="contact_list_id">
 
-	<li id="contact_id_general" class="contact{% if not cur_user %} active{% endif %}" onclick="chatns.set_active(this, 'general')" style="padding:10px;">
+	<li id="contact_id_general" class="contact{% if not cur_user %} active{% endif %}" onclick="chatns.set_active(this, 'general', false)" style="padding:10px;">
 	  <div class="wrap">
 	    <div class="meta">
 	      <i class="fas fa-home fa-2x" style="margin:-5px;"></i>
@@ -88,13 +88,14 @@
 	</li>
 
 	{% for c in my_channels %}
-	<li id="contact_id_channel_{{ c.id }}" class="contact" onclick="chatns.set_active(this, 'channel')" style="padding:10px;" onmouseover="chatns.channel_remove_btn(this, false);" onmouseout="chatns.channel_remove_btn(this, true);">
+	<input type="hidden" id="channel_name_{{ c.id }}" value="{{ c.name }}">
+	<li id="contact_id_channel_{{ c.id }}" class="contact" onclick="chatns.set_active(this, {{ c.id }}, true)" style="padding:10px;" onmouseover="chatns.channel_remove_btn(this, {{ c.id }}, false);" onmouseout="chatns.channel_remove_btn(this, {{ c.id }}, true);">
 	  <div class="wrap">
 	    <div class="meta">
 	      <i class="fas fa-hashtag fa-2x" style="margin:-5px;"></i>
-	      <div style="margin:-23px 0 0 45px;">
-		<b>{{ c.name }}</b>&nbsp;
-		<div style="display:none;">
+	      <div style="margin:-23px 0 0 45px;font-weight: bold;" id="channel_{{ c.id }}">
+		{{ c.name }}
+		<div style="display:none;">&nbsp;
 		  <a href="" onclick="return chatns.remove_channel({{ c.id }});">
 		    <i class="fas fa-minus-circle"></i>
 		  </a>
@@ -109,7 +110,7 @@
 
 	{% for u in users %}
 	{% if u.id != request.user.id %}
-	<li id="contact_id_{{ u.id}}" class="contact" onclick="chatns.set_active(this, {{ u.id }})">
+	<li id="contact_id_{{ u.id}}" class="contact" onclick="chatns.set_active(this, {{ u.id }}, false)">
 	  <div class="wrap">
 	    <span id="user_id_{{ u.id }}" class="contact-status {{ u.chat_status }}{% if cur_user %} active{% endif %}"></span>
 	    <img id="user_img_{{ u.id }}" src="{% url 'user-img' u.id %}" alt="{{ u.first_name }} {{ u.last_name }}" />
@@ -129,7 +130,7 @@
       <button id="settings"><i class="fa fa-cog fa-fw" aria-hidden="true"></i> <span>Settings</span></button>
     </div>
   </div>
-  <div class="content" onmouseout="chatns.has_focus=false" onmouseover="chatns.unread_msg_cur_user_clear()">
+  <div class="content" onmouseout="chatns.has_focus=false" onmouseover="if (typeof chatns !== 'undefined') chatns.unread_msg_cur_user_clear();">
     <div style="position:absolute;margin:-1000px -1000px;" class="messages" id="hidden_cur_msg_box_id"><ul></ul></div>
     <span id="msg_box_id">
       {% include 'chat/msg_box.html' %}

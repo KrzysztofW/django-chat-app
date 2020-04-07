@@ -4,7 +4,6 @@ var chatns = {
     general_msg_box_hdr : '<div class="contact-profile"><p style="line-height:60px;" id="contact_name_id">&nbsp;&nbsp;{% trans 'Welcome ' %}</p></div><div class="messages" id="inner_msg_box_id"><ul>',
     general_msg_box_footer : '</ul></div>',
     cur_tuid : 'general',
-    cur_cuid : '',
     cur_status : 'offline',
     msg_box : document.getElementById('msg_box_id'),
     unread_msg_cnt : new Set(),
@@ -71,7 +70,7 @@ var chatns = {
 		var contact_elem = document.getElementById('contact_id_' + uid);
 
 		window.focus();
-		chatns.set_active(contact_elem, uid);
+		chatns.set_active(contact_elem, uid, false);
 		this.close();
 	    };
 	} else if (Notification.permission !== 'denied') {
@@ -118,54 +117,68 @@ var chatns = {
     },
 
     new_message:function() {
+	var is_channel = false;
+	var tuid = chatns.cur_tuid;
+
 	message = $(".message-input input").val();
 	message = message.replace(/<[^>]*>?/gm, '');
 
-	if($.trim(message) == '') {
-	    return false;
-	}
-	if (chatns.cur_tuid == '') {
+	if ($.trim(message) == '' || chatns.cur_tuid == '')
 	    return;
-	}
 
 	if (chatns.cur_status == 'offline') {
 	    alert('{% trans 'You are offline' %}');
 	    return;
 	}
+	if (typeof tuid == 'string' && tuid.includes('channel_')) {
+	    is_channel = true;
+	    tuid = tuid.replace('channel_', '');
+	}
 	chatns.chat_socket.send(JSON.stringify({
 	    'cmd': {{ ws_cmds.MSG.value }},
-	    'tuid': chatns.cur_tuid,
-	    'msg': encodeURI(message)
+	    'tuid': tuid,
+	    'msg': encodeURI(message),
+	    'is_channel' : is_channel
 	}));
 	$('.message-input input').val(null);
     },
 
     msg_pos : 0,
 
-    set_active:function(elem, uid)
+    set_active:function(elem, uid, is_channel)
     {
+	if (elem.classList.contains('active'))
+	    return;
+
 	$('li').each(function(i) {
 	    $(this).removeClass('active');
 	});
 
 	elem.classList.add('active');
-	chatns.cur_tuid = uid;
+	if (is_channel) {
+	    var name = '#channel_name_' + uid;
+	    chatns.cur_tuid = 'channel_' + uid;
+	} else {
+	    var name = '#user_name_' + uid;
+	    chatns.cur_tuid = uid;
+	}
 
 	if (uid == 'general') {
 	    chatns.general_msg_box_show();
 	    return;
 	}
 
-	var username = $('#user_name_' + uid);
+	name = $(name);
 
-	if (typeof username.val() !== 'undefined')
-	    username.removeClass('username_unread_msg');
+	if (typeof name.val() !== 'undefined')
+	    name.removeClass('username_unread_msg');
 
 	chatns.msg_pos = 0;
 	$.ajax({
 	    url: "{% url 'chat-load-msgs' %}",
 	    data: {
 		'uid': uid,
+		'is_channel' : is_channel,
 		'pos': chatns.msg_pos,
 	    },
 	    success: function(data) {
@@ -209,7 +222,7 @@ var chatns = {
 
     add_channel_to_my_list:function(id, name)
     {
-	$('<li id="contact_id_channel_' + id + '" class="contact" onclick="chatns.set_active(this, \'channel\')" style="padding:10px;" onmouseover="chatns.channel_remove_btn(this, false);" onmouseout="chatns.channel_remove_btn(this, true);"><div class="wrap"><div class="meta"><i class="fas fa-hashtag fa-2x" style="margin:-5px;"></i><div style="margin:-23px 0 0 45px;"><b>' + name + '</b>&nbsp;<div style="display:none;"><a href="" onclick="return chatns.remove_channel(' + id + ');"><i class="fas fa-minus-circle"></i></a></div></div></div></div></li>').insertAfter($('#contact_id_general'));
+	$('<input type="hidden" id="channel_name_' + id + '" value="' + name +'"><li id="contact_id_channel_' + id + '" class="contact" onclick="chatns.set_active(this, ' + id + ', true)" style="padding:10px;" onmouseover="chatns.channel_remove_btn(this, ' + id + ', false);" onmouseout="chatns.channel_remove_btn(this, ' + id + ',true);"><div class="wrap"><div class="meta"><i class="fas fa-hashtag fa-2x" style="margin:-5px;"></i><div style="margin:-23px 0 0 45px;font-weight:bold;" id="channel_' + id + '">' + name + '<div style="display:none;">&nbsp; <a href="" onclick="return chatns.remove_channel(' + id + ');"><i class="fas fa-minus-circle"></i></a></div></div></div></div></li>').insertAfter($('#contact_id_general'));
     },
     add_channel_close_win:function()
     {
@@ -260,18 +273,24 @@ var chatns = {
 
 	return false;
     },
-    channel_remove_btn:function(item, remove)
+    channel_remove_btn:function(item, id, remove)
     {
+	if (chatns.cur_tuid != 'channel_' + id)
+	    return;
 	if (remove) {
 	    chatns.add_channel_unset_error();
 	    style = 'display:none';
-	} else
+	} else {
 	    style = 'display:inline';
-	item.children[0].children[0].children[1].children[1].style = style;
+	}
+	item.children[0].children[0].children[1].children[0].style = style;
 
     },
     remove_channel:function(id)
     {
+	if (!confirm("{% trans 'Are you sure to remove the channel?' %}"))
+	    return false;
+
 	$.ajax({
 	    url: "{% url 'chat-remove-channel' %}",
 	    data: {
@@ -279,6 +298,7 @@ var chatns = {
 	    },
 	    success: function(d) {
 		document.getElementById('contact_id_channel_' + id).remove();
+		chatns.set_active(document.getElementById('contact_id_general'), 'general', false);
 	    },
 	});
 	return false;
@@ -303,6 +323,37 @@ var chatns = {
 	});
 
 	channel_box.classList.remove('invisible');
+    },
+
+    chat_insert_msg:function(msg_class, user_img, user_name, message)
+    {
+	$('<li class="' + msg_class + '"><div><img src="' + user_img + '"><div class="msg_div"><b>' + user_name + '</b> <span class="msg_span">' + chatns.get_current_date() + '</span></div></div><br><p class="msg_p">' + message + '</p></li>').appendTo($('.messages ul'));
+	$('.message-input input').val(null);
+	chatns.scroll_down_msg_box(0);
+    },
+    chat_handle_channel_msg:function(uid, user_name, user_image, cid, message)
+    {
+	var msg = chatns.truncate_string(message, 80);
+
+	if (chatns.cur_tuid != 'channel_' + cid) {
+	    var channel_name = $('#channel_name_' + cid);
+
+	    if (typeof channel_name.val() === 'undefined')
+		return;
+
+	    channel_name.addClass('username_unread_msg');
+	    if (uid != {{ request.user.id }})
+		chatns.notify_me(user_name, uid, '', msg);
+	    return;
+	}
+	if (uid != {{ request.user.id }}) {
+	    if (!chatns.has_focus)
+		chatns.notify_me(user_name, uid, '', msg);
+	    var direction = 'reply';
+	} else {
+	    var direction = 'sent';
+	}
+	chatns.chat_insert_msg(direction, user_image, user_name, message);
     },
 
     play_sound:function()
@@ -338,12 +389,21 @@ var chatns = {
 	chatns.msg_box_loading = true;
 	loading.classList.remove('invisible');
 
+	if (typeof chatns.cur_tuid == 'string' && chatns.cur_tuid.includes('channel_')) {
+	    is_channel = true;
+	    tuid = chatns.cur_tuid.replace('channel_', '');
+	} else {
+	    is_channel = false;
+	    tuid = chatns.cur_tuid;
+	}
+
 	$.ajax({
 	    url: "{% url 'chat-load-msgs' %}",
 	    data: {
-		'uid': chatns.cur_tuid,
+		'uid': tuid,
 		'pos': chatns.msg_pos,
 		'load': 1,
+		'is_channel' : is_channel
 	    },
 	    success: function(data) {
 		var inner_msg_box = document.getElementById('inner_msg_box_id');
@@ -412,6 +472,7 @@ chatns.chat_socket.onmessage = function(e) {
     var cmd = data['cmd'];
     var uid = data['uid'];
     var status = data['status'];
+    var is_channel = data['is_channel'];
 
     if (typeof uid === 'undefined' || typeof cmd === 'undefined')
 	return;
@@ -431,6 +492,16 @@ chatns.chat_socket.onmessage = function(e) {
 	return;
     if (typeof user_img.val() === 'undefined')
 	return;
+
+    if (is_channel) {
+	var cid = data['cid'];
+
+	if (typeof cid == 'undefined' || cmd != {{ ws_cmds.MSG.value }})
+	    return;
+	return chatns.chat_handle_channel_msg(uid, user_name.text(),
+					      user_img.attr('src'), cid,
+					      message);
+    }
 
     switch (cmd) {
     case {{ ws_cmds.DISCONNECT.value }}:
@@ -457,20 +528,26 @@ chatns.chat_socket.onmessage = function(e) {
 	return;
     case {{ ws_cmds.NEW_MSGS.value }}:
 	var uids = JSON.parse(data['uids_msgs']);
-	var prefix = 'user_name_'
+	var u_prefix = 'user_name_';
 
 	if (uids.length)
 	    chatns.unread_msg_elem.classList.remove('invisible');
 
 	for (i = 0; i < uids.length; i++) {
-	    var username = prefix + uids[i];
-	    var elem = document.getElementById(username);
+	    var uid = uids[i][0];
+	    var is_channel = uids[i][1];
+	    if (is_channel)
+		var name = c_prefix + uid;
+	    else
+		var name = u_prefix + uid;
+	    var elem = document.getElementById(name);
 
 	    if (typeof elem === 'undefined')
 		continue;
 	    elem.classList.add('username_unread_msg');
-	    if (chatns.cur_tuid != ids[i])
-		chatns.update_unread_msg_cnt(ids[i], true);
+
+	    if (chatns.cur_tuid != uid)
+		chatns.update_unread_msg_cnt(name, true);
 	}
 	return;
     default:
@@ -499,9 +576,7 @@ chatns.chat_socket.onmessage = function(e) {
 	msg_class = 'replies';
     }
 
-    $('<li class="' + msg_class + '"><div><img src="' + user_img.attr('src') + '"><div class="msg_div"><b>' + user_name.text() + '</b> <span class="msg_span">' + chatns.get_current_date() + '</span></div></div><br><p class="msg_p">' + message + '</p></li>').appendTo($('.messages ul'));
-    $('.message-input input').val(null);
-    chatns.scroll_down_msg_box(0);
+    chatns.chat_insert_msg(msg_class, user_img.attr('src'), user_name.text(), message);
 };
 
 $("#profile-img").click(function() {
