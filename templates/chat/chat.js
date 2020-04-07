@@ -10,6 +10,7 @@ var chatns = {
     unread_msg_elem : document.getElementById('unread_msgs_id'),
     unread_msg_tim : 0,
     has_focus : true,
+    scroll_no_focus_cnt : 0,
 
     {% if LANGUAGE_CODE == 'fr' %}
     month : ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"],
@@ -21,10 +22,13 @@ var chatns = {
     {
 	var inner_msg_box = document.getElementById('inner_msg_box_id');
 
-	if (val)
-	    inner_msg_box.scrollTop = val;
-	else
-	    inner_msg_box.scrollTop = inner_msg_box.scrollHeight;
+	inner_msg_box.scrollTop = inner_msg_box.scrollHeight - val;
+    },
+    scroll_up_msg_box:function(val)
+    {
+	var inner_msg_box = document.getElementById('inner_msg_box_id');
+
+	inner_msg_box.scrollTop = val;
     },
 
     truncate_string:function(str, num)
@@ -56,12 +60,14 @@ var chatns = {
 	    return;
 
 	chatns.has_focus = true;
+	chatns.scroll_no_focus_cnt = 0;
 	chatns.unread_msg_tim = setTimeout(chatns.unread_msg_cur_user_clear_cb, 3000);
     },
 
     notify_me:function(user_name, uid, img, msg) {
 	chatns.play_sound();
 	chatns.update_unread_msg_cnt(uid, true);
+
 	if (Notification.permission === 'granted') {
 	    var notification = new Notification('{% trans 'Message from' %}' + ' ' + user_name, {
 		body: chatns.truncate_string(msg, 40),
@@ -329,7 +335,15 @@ var chatns = {
     {
 	$('<li class="' + msg_class + '"><div><img src="' + user_img + '"><div class="msg_div"><b>' + user_name + '</b> <span class="msg_span">' + chatns.get_current_date() + '</span></div></div><br><p class="msg_p">' + message + '</p></li>').appendTo($('.messages ul'));
 	$('.message-input input').val(null);
-	chatns.scroll_down_msg_box(0);
+
+	if (chatns.has_focus || msg_class == 'sent') {
+	    chatns.scroll_down_msg_box(0);
+	    chatns.scroll_no_focus_cnt = 0;
+	}
+	else if (chatns.scroll_no_focus_cnt <= 420) {
+	    chatns.scroll_down_msg_box(chatns.scroll_no_focus_cnt);
+	    chatns.scroll_no_focus_cnt += 420;
+	}
     },
     chat_handle_channel_msg:function(uid, user_name, user_image, cid, message)
     {
@@ -424,7 +438,7 @@ var chatns = {
 		    pos += 500;
 
 		if (data.length > 5)
-		    chatns.scroll_down_msg_box(pos);
+		    chatns.scroll_up_msg_box(pos);
 
 		loading.classList.add('invisible');
 	    },
