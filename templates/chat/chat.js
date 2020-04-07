@@ -641,3 +641,7 @@ $(window).on('keydown', function(e) {
 	return false;
     }
 });
+
+if (Notification.permission !== 'denied') {
+    Notification.requestPermission();
+}
