@@ -162,7 +162,7 @@ var chatns = {
 
 	elem.classList.add('active');
 	if (is_channel) {
-	    var name = '#channel_name_' + uid;
+	    var name = '#channel_' + uid;
 	    chatns.cur_tuid = 'channel_' + uid;
 	} else {
 	    var name = '#user_name_' + uid;
@@ -190,6 +190,8 @@ var chatns = {
 	    success: function(data) {
 		chatns.msg_box.innerHTML = decodeURI(data);
 		chatns.scroll_down_msg_box(0);
+		if (is_channel)
+		    uid = 'channel_' + uid;
 		chatns.update_unread_msg_cnt(uid, false);
 		chatns.msg_pos += {{ msg_limit }};
 	    }
@@ -348,22 +350,23 @@ var chatns = {
     chat_handle_channel_msg:function(uid, user_name, user_image, cid, message)
     {
 	var msg = chatns.truncate_string(message, 80);
+	var chann_cid = 'channel_' + cid;
 
-	if (chatns.cur_tuid != 'channel_' + cid) {
-	    var channel_name = $('#channel_name_' + cid);
+	if (chatns.cur_tuid != chann_cid) {
+	    var channel_elem = $('#channel_' + cid);
 
-	    if (typeof channel_name.val() === 'undefined')
+	    if (typeof channel_elem.val() === 'undefined')
 		return;
 
-	    channel_name.addClass('username_unread_msg');
+	    channel_elem.addClass('username_unread_msg');
 	    if (uid != {{ request.user.id }})
-		chatns.notify_me(user_name, uid, '', msg);
+		chatns.notify_me(user_name, chann_cid, '', msg);
 	    return;
 	}
 	if (uid != {{ request.user.id }}) {
 	    if (!chatns.has_focus)
-		chatns.notify_me(user_name, uid, '', msg);
-	    var direction = 'reply';
+		chatns.notify_me(user_name, chann_cid, '', msg);
+	    var direction = 'replies';
 	} else {
 	    var direction = 'sent';
 	}
@@ -543,6 +546,7 @@ chatns.chat_socket.onmessage = function(e) {
     case {{ ws_cmds.NEW_MSGS.value }}:
 	var uids = JSON.parse(data['uids_msgs']);
 	var u_prefix = 'user_name_';
+	var c_prefix = 'channel_';
 
 	if (uids.length)
 	    chatns.unread_msg_elem.classList.remove('invisible');
