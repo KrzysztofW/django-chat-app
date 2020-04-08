@@ -82,7 +82,7 @@ def get_msgs_view(request):
 
 @login_required
 def chat_view(request):
-    users = user_models.get_local_user_queryset().all()
+    users = user_models.get_local_user_queryset().filter(is_active=True)
     conn_users = get_connected_users()
 
     for u in users:
