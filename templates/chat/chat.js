@@ -64,7 +64,7 @@ var chatns = {
 	chatns.unread_msg_tim = setTimeout(chatns.unread_msg_cur_user_clear_cb, 3000);
     },
 
-    notify_me:function(user_name, uid, img, msg) {
+    notify_me:function(user_name, uid, is_channel, img, msg) {
 	chatns.play_sound();
 	chatns.update_unread_msg_cnt(uid, true);
 
@@ -76,7 +76,7 @@ var chatns = {
 		var contact_elem = document.getElementById('contact_id_' + uid);
 
 		window.focus();
-		chatns.set_active(contact_elem, uid, false);
+		chatns.set_active(contact_elem, uid, is_channel);
 		this.close();
 	    };
 	} else if (Notification.permission !== 'denied') {
@@ -360,12 +360,12 @@ var chatns = {
 
 	    channel_elem.addClass('username_unread_msg');
 	    if (uid != {{ request.user.id }})
-		chatns.notify_me(user_name, chann_cid, '', msg);
+		chatns.notify_me(user_name, chann_cid, true, '', msg);
 	    return;
 	}
 	if (uid != {{ request.user.id }}) {
 	    if (!chatns.has_focus)
-		chatns.notify_me(user_name, chann_cid, '', msg);
+		chatns.notify_me(user_name, chann_cid, true, '', msg);
 	    var direction = 'replies';
 	} else {
 	    var direction = 'sent';
@@ -581,7 +581,7 @@ chatns.chat_socket.onmessage = function(e) {
 	var msg = chatns.truncate_string(message, 80);
 
 	username.addClass('username_unread_msg');
-	chatns.notify_me(user_name.text(), uid, user_img, msg);
+	chatns.notify_me(user_name.text(), uid, false, user_img, msg);
 	return;
     }
     if (uid == {{ request.user.id }})
@@ -589,7 +589,7 @@ chatns.chat_socket.onmessage = function(e) {
     else {
 	if (!chatns.has_focus) {
 	    var msg = chatns.truncate_string(message, 80);
-	    chatns.notify_me(user_name.text(), uid, user_img, msg);
+	    chatns.notify_me(user_name.text(), uid, false, user_img, msg);
 	}
 	msg_class = 'replies';
     }
