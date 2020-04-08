@@ -256,7 +256,7 @@ class ChatChannel(AsyncWebsocketConsumer):
         await self.accept()
         conn_user = await get_connected_user_list(user.id)
 
-        if len(conn_user) == 1:
+        if len(conn_user) == 1 and chat_status != ChatStatus.OFFLINE.value:
             await self.handle_status_update(chat_status)
 
     async def chat_message(self, event):
