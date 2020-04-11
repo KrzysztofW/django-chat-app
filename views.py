@@ -10,12 +10,11 @@ import os, pdb, mimetypes, subprocess, json, pdb
 from . import models as chat_models
 from users import models as user_models
 from django.contrib.auth import get_user_model
-from . consumers import (get_connected_user, get_connected_users,
-                         get_connected_user_list, get_user_status,
+from . consumers import (get_connected_user_sync, get_connected_users_sync,
+                         get_connected_user_list_sync, get_user_status_sync,
                          is_status_valid)
 from common.lgc_types import ChatWebSocketCmd, ChatStatus
 from django.http import JsonResponse
-from asgiref.sync import async_to_sync
 
 User = get_user_model()
 MSG_LIMIT = 10
@@ -53,7 +52,7 @@ def get_msgs(request):
     return user, channel, msgs[pos:pos_end]
 
 def __get_msgs_view(request):
-    chann, status = async_to_sync(get_connected_user)(request.user.id)
+    chann, status = get_connected_user_sync(request.user.id)
     from_user, channel, msgs = get_msgs(request)
 
     if msgs and len(msgs) == 0:
@@ -83,7 +82,7 @@ def get_msgs_view(request):
 @login_required
 def chat_view(request):
     users = user_models.get_local_user_queryset().filter(is_active=True)
-    conn_users = get_connected_users()
+    conn_users = get_connected_users_sync()
 
     for u in users:
         try:
@@ -93,7 +92,7 @@ def chat_view(request):
 
     context = __get_msgs_view(request)
     context['users'] = users
-    context['connected_users'] = get_connected_users()
+    context['connected_users'] = get_connected_users_sync()
     context['title'] = _('Chat')
     context['msg_limit'] = MSG_LIMIT
     context['ws_cmds'] = ChatWebSocketCmd
@@ -106,7 +105,7 @@ def chat_view(request):
 def get_user_statuses_view(request):
     statuses = []
 
-    for id, s in get_connected_users():
+    for id, s in get_connected_users_sync():
         if s != ChatStatus.OFFLINE.value and id is not None:
             statuses.append(id, s)
     data = {
@@ -116,7 +115,7 @@ def get_user_statuses_view(request):
 
 @login_required
 def get_my_status(request):
-    user_status = async_to_sync(get_user_status)(request.user.id)
+    user_status = get_user_status_sync(request.user.id)
     status = request.GET.get('status')
 
     if user_status:

@@ -70,6 +70,10 @@ async def get_connected_user(uid):
     chann = await r.lindex('l_' + uidns, 0)
     return chann.decode('utf-8'), status
 
+@async_to_sync
+async def get_connected_user_sync(uid):
+    return await get_connected_user(uid)
+
 async def get_user_status(uid):
     r = await redis_connect()
     uidns = str(uid) + redis_ns
@@ -77,6 +81,10 @@ async def get_user_status(uid):
     if status:
         return status.decode('utf-8')
     return None
+
+@async_to_sync
+async def get_user_status_sync(uid):
+    return await get_user_status(uid)
 
 async def get_connected_user_list(uid):
     r = await redis_connect()
@@ -94,7 +102,11 @@ async def get_connected_user_list(uid):
     return user_list
 
 @async_to_sync
-async def get_connected_users():
+async def get_connected_user_list_sync(uid):
+    return await get_connected_user_list(uid)
+
+@async_to_sync
+async def get_connected_users_sync():
     res = {}
     r = await redis_connect()
     h = await r.keys('h_*' + redis_ns)
