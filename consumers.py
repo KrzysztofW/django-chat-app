@@ -289,6 +289,10 @@ class ChatChannel(AsyncWebsocketConsumer):
         if status is not None:
             return
 
+        if cur_status is None:
+            """the user is not authenticated"""
+            return
+
         user.chat_profile.last_chat_status = ChatStatus.to_db_name(cur_status)
         user.chat_profile.offline_date = timezone.now()
         await self.save_object(user.chat_profile)
