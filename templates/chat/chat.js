@@ -1,4 +1,10 @@
 {% load static %}{% load i18n %}{% load custom_tags %}{% get_current_language as LANGUAGE_CODE %}
+var chat_settings = {
+    notifs_mp : {{ settings.notifs_mp }},
+    notifs_chann : {{ settings.notifs_chann }},
+    notifs_sound : {{ settings.notifs_sound }},
+    notifs_sound_chann : {{ settings.notifs_sound_chann }},
+}
 var chatns = {
     general_msg_box : '',
     general_msg_box_hdr : '<div class="contact-profile"><p style="line-height:60px;" id="contact_name_id">&nbsp;&nbsp;{% trans 'Welcome ' %}</p></div><div class="messages" id="inner_msg_box_id"><ul>',
@@ -65,10 +71,16 @@ var chatns = {
     },
 
     notify_me:function(user_name, uid, is_channel, img, msg) {
-	chatns.play_sound();
-	chatns.update_unread_msg_cnt(uid, true);
+	if ((is_channel && chat_settings.notifs_sound_chann) ||
+	    (!is_channel && chat_settings.notifs_sound))
+	    chatns.play_sound();
 
+	chatns.update_unread_msg_cnt(uid, true);
 	if (Notification.permission === 'granted') {
+	    if (is_channel && !chat_settings.notifs_chann)
+		return;
+	    if (!is_channel && !chat_settings.notifs_mp)
+		return;
 	    var notification = new Notification('{% trans 'Message from' %}' + ' ' + user_name, {
 		body: chatns.truncate_string(msg, 40),
 	    });
@@ -198,6 +210,67 @@ var chatns = {
 	});
     },
 
+    settings_show:function()
+    {
+	var settings = document.getElementById('settings_box_id');
+
+	settings.classList.remove('invisible');
+    },
+    settings_close_win:function()
+    {
+	var settings = document.getElementById('settings_box_id');
+
+	settings.classList.add('invisible');
+    },
+    settings_set_error:function(error)
+    {
+	var error_elem = document.getElementById('settings_error_id');
+	var error_div = document.getElementById('settings_error_div');
+
+	if (error)
+	    error_elem.classList.remove('invisible');
+	else
+	    error_elem.classList.add('invisible');
+	error_div.innerHTML = '<strong>' + error + '</strong>';
+    },
+    settings_save:function()
+    {
+	var notifs_mp = document.getElementById('notifs_mp_id');
+	var notifs_chann = document.getElementById('notifs_chann_id');
+	var notifs_sound = document.getElementById('notifs_sound_mp_id');
+	var notifs_sound_chann = document.getElementById('notifs_sound_chann_id');
+	var settings = document.getElementById('settings_box_id');
+
+	$.ajax({
+	    url: "{% url 'chat-set-settings' %}",
+	    data: {
+		'mp': notifs_mp.checked ? 1 : 0,
+		'chann': notifs_chann.checked ? 1 : 0,
+		'sound': notifs_sound.checked ? 1 : 0,
+		'sound_chann': notifs_sound_chann.checked ? 1 : 0
+	    },
+	    success: function() {
+		val = notifs_mp.checked ? 1 : 0;
+		chat_settings.notifs_mp = val
+
+		val = notifs_chann.checked ? 1 : 0;
+		chat_settings.notifs_chann = val;
+
+		val = notifs_sound.checked ? 1 : 0;
+		chat_settings.notifs_sound = val;
+
+		val = notifs_sound_chann.checked ? 1 : 0;
+		chat_settings.notifs_sound_chann = val;
+
+		settings.classList.add('invisible');
+	    },
+	    error: function() {
+		chatns.settings_set_error("{% trans 'Cannot save settings' %}");
+	    }
+	});
+
+	return false;
+    },
     channel_close_win:function()
     {
 	var channel_box = document.getElementById('channel_box_id');
@@ -212,22 +285,16 @@ var chatns = {
 	var channel_name = document.getElementById('add_channel_id');
 	var error_div = document.getElementById('add_channel_error_div');
 
-	error_elem.classList.remove('invisible');
-	channel_name.classList.add('is-invalid');
+	if (error) {
+	    error_elem.classList.remove('invisible');
+	    channel_name.classList.add('is-invalid');
+	} else {
+	    error_elem.classList.add('invisible');
+	    channel_name.classList.remove('is-invalid');
+	}
 	error_div.innerHTML = '<strong>' + error + '</strong>';
-    },
-    add_channel_unset_error:function()
-    {
-	var error_elem = document.getElementById('add_channel_error_id');
-	var channel_name = document.getElementById('add_channel_id');
-	var error_div = document.getElementById('add_channel_error_div');
 
-	error_elem.classList.add('invisible');
-	channel_name.classList.remove('is-invalid');
-	error_div.innerHTML = '';
-	channel_name.value = '';
     },
-
     add_channel_to_my_list:function(id, name)
     {
 	$('<input type="hidden" id="channel_name_' + id + '" value="' + name +'"><li id="contact_id_channel_' + id + '" class="contact" onclick="chatns.set_active(this, ' + id + ', true)" style="padding:10px;" onmouseover="chatns.channel_remove_btn(this, ' + id + ', false);" onmouseout="chatns.channel_remove_btn(this, ' + id + ',true);"><div class="wrap"><div class="meta"><i class="fas fa-hashtag fa-2x" style="margin:-5px;"></i><div style="margin:-23px 0 0 45px;font-weight:bold;" id="channel_' + id + '">' + name + '<div style="display:none;">&nbsp; <a href="" onclick="return chatns.remove_channel(' + id + ');"><i class="fas fa-minus-circle"></i></a></div></div></div></div></li>').insertAfter($('#contact_id_general'));
@@ -286,7 +353,7 @@ var chatns = {
 	if (chatns.cur_tuid != 'channel_' + id)
 	    return;
 	if (remove) {
-	    chatns.add_channel_unset_error();
+	    chatns.add_channel_set_error();
 	    style = 'display:none';
 	} else {
 	    style = 'display:inline';
@@ -317,6 +384,7 @@ var chatns = {
 	var other_channels = document.getElementById('other_channels_id');
 
 	other_channels.innerHTML = "{% trans 'loading...' %}";
+	chatns.add_channel_set_error();
 
 	$.ajax({
 	    url: "{% url 'chat-list-channels' %}",

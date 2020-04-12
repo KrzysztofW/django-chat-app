@@ -714,10 +714,6 @@ p, ul {
     color: #ff0000;
 }
 
-.invisible {
-    display: none;
-}
-
 .fullwindow {
     opacity:0.9;
     background-color:#ccc;

@@ -170,6 +170,14 @@ class ChatChannel(AsyncWebsocketConsumer):
         return chat_models.Channel.objects.get(id=uid)
 
     @database_sync_to_async
+    def get_user_and_profile(self, id):
+        try:
+            user = User.objects.get(id=id)
+            return user, user.chat_profile
+        except:
+            return None, None
+
+    @database_sync_to_async
     def save_object(self, object):
         object.save()
 
@@ -275,9 +283,11 @@ class ChatChannel(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps(event))
 
     async def disconnect(self, close_code):
-        user = self.scope['user']
-        uid = user.id
+        user, chat_profile = await self.get_user_and_profile(self.scope['user'].id)
+        if user is None or chat_profile is None:
+            return
 
+        uid = user.id
         self.channel_layer.group_discard(CONNECTED_USR_GRP, self.channel_name)
         user_list = await get_connected_user_list(uid)
         cur_status = await get_user_status(uid)
@@ -293,9 +303,9 @@ class ChatChannel(AsyncWebsocketConsumer):
             """the user is not authenticated"""
             return
 
-        user.chat_profile.last_chat_status = ChatStatus.to_db_name(cur_status)
-        user.chat_profile.offline_date = timezone.now()
-        await self.save_object(user.chat_profile)
+        chat_profile.last_chat_status = ChatStatus.to_db_name(cur_status)
+        chat_profile.offline_date = timezone.now()
+        await self.save_object(chat_profile)
 
         await self.channel_layer.group_send(
             CONNECTED_USR_GRP, {

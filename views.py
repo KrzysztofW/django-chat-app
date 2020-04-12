@@ -98,6 +98,12 @@ def chat_view(request):
     context['ws_cmds'] = ChatWebSocketCmd
     context['my_channels'] = request.user.channel_set.all()
     context['other_channels'] = chat_models.Channel.objects.exclude(users=request.user).all()
+    context['settings'] = {
+        'notifs_mp' : 1 if request.user.chat_profile.notifs_mp else 0,
+        'notifs_chann' : 1 if request.user.chat_profile.notifs_chann else 0,
+        'notifs_sound' : 1 if request.user.chat_profile.notifs_sound else 0,
+        'notifs_sound_chann' : 1 if request.user.chat_profile.notifs_sound_chann else 0,
+    };
 
     return render(request, 'chat/chat.html', context)
 
@@ -112,6 +118,24 @@ def get_user_statuses_view(request):
         'statutes': statuses,
     }
     return JsonResponse(data)
+
+@login_required
+def save_settings_view(request):
+    mp = request.GET.get('mp')
+    chann = request.GET.get('chann')
+    sound = request.GET.get('sound')
+    sound_chann = request.GET.get('sound_chann')
+
+    if mp is None or chann is None or sound is None or sound_chann is None:
+        return http.HttpResponseBadRequest()
+
+    request.user.chat_profile.notifs_mp = mp
+    request.user.chat_profile.notifs_chann = chann
+    request.user.chat_profile.notifs_sound = sound
+    request.user.chat_profile.notifs_sound_chann = sound_chann
+    request.user.chat_profile.save()
+
+    return http.HttpResponse()
 
 @login_required
 def get_my_status(request):

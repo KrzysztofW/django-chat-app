@@ -10,4 +10,5 @@ urlpatterns = [
     path('remove_channel', views.remove_channel, name='chat-remove-channel'),
     path('list_channels', views.list_channels, name='chat-list-channels'),
     path('join_channel', views.join_channel, name='chat-join-channel'),
+    path('chat-settings', views.save_settings_view, name='chat-set-settings'),
 ]

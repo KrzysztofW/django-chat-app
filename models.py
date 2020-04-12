@@ -37,3 +37,7 @@ class UserProfile(models.Model):
                                         choices=ChatStatus.get_list(),
                                         default=ChatStatus.get_default())
     offline_date = models.DateTimeField(auto_now_add=True)
+    notifs_mp = models.BooleanField(default=True)
+    notifs_chann = models.BooleanField(default=True)
+    notifs_sound = models.BooleanField(default=True)
+    notifs_sound_chann = models.BooleanField(default=True)

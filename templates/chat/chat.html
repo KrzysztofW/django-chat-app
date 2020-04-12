@@ -26,6 +26,44 @@
   </div>
 </div>
 
+<div class="fullwindow invisible" id="settings_box_id">
+  <div class="d-flex justify-content-center">
+    <div class="card">
+      <div class="card-header d-flex div_window">
+	<div class="flex-grow-1">{% trans 'Settings' %}</div>
+	<div class=""><a href="#" onclick="return chatns.settings_close_win();" style="color:#ffffff">X</a></div>
+      </div>
+      <div class="card-body">
+	<div class="form-group col-md-9"><b>{% trans 'Popup notifications' %}</b><hr></div>
+	<div class="form-group form-check">
+	  <input type="checkbox" class="form-check-input" {% if settings.notifs_mp %}checked{% endif %} id="notifs_mp_id">
+	  <label class="form-check-label" for="notifs_mp_id">{% trans 'Enable notifications' %}</label>
+	  <small class="form-text text-muted">{% trans 'You will be notified on reception of private messages.<br>Note that you must enable browser notifications manually.' %}</small>
+	</div>
+	<div class="form-group form-check">
+	  <input type="checkbox" class="form-check-input" id="notifs_chann_id" {% if settings.notifs_chann %}checked{% endif %}>
+	  <label class="form-check-label" for="notifs_chann_id">{% trans 'Enable channel notifications' %}</label>
+	  <small class="form-text text-muted">{% trans 'You will be notified on reception of messages from public channels' %}.</small>
+	</div>
+	<div class="form-group col-md-9"><b>{% trans 'Sound notifications' %}</b><hr></div>
+	<div class="form-group form-check">
+	  <input type="checkbox" class="form-check-input" id="notifs_sound_mp_id" {% if settings.notifs_sound %}checked{% endif %}>
+	  <label class="form-check-label" for="notifs_sound_mp_id">{% trans 'Play sound' %}</label>
+	  <small class="form-text text-muted">{% trans 'A sound will be played on reception of private messages' %}.</small>
+	</div>
+	<div class="form-group form-check">
+	  <input type="checkbox" class="form-check-input" id="notifs_sound_chann_id" {% if settings.notifs_sound_chann %}checked{% endif %}>
+	  <label class="form-check-label" for="notifs_sound_chann_id">{% trans 'Play sound on channel activities' %}</label>
+	  <small class="form-text text-muted">{% trans 'A sound will be played on reception of messages from public channels' %}.</small>
+	</div>
+	<span id="settings_error_id" class="invalid-feedback invisible d-block"><div id="settings_error_div"><strong></strong></div></span><br>
+	<a href="#" class="btn btn-primary" onclick="chatns.settings_save();">{% trans 'Save' %}</a>
+
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="frame">
   <div id="sidepanel">
     <div id="profile">
@@ -125,9 +163,9 @@
       </ul>
     </div>
     <div id="bottom-bar">
-      <button onclick="chatns.add_channel();" id="addcontact">
+      <button onclick="chatns.add_channel();">
 	<i class="fa fa-user-plus fa-fw" aria-hidden="true"></i> <span>{% trans 'Add channel' %}</span></button>
-      <button id="settings"><i class="fa fa-cog fa-fw" aria-hidden="true"></i> <span>Settings</span></button>
+      <button onclick="chatns.settings_show();"><i class="fa fa-cog fa-fw" aria-hidden="true"></i> <span>{% trans 'Settings' %}</span></button>
     </div>
   </div>
   <div class="content" onmouseout="chatns.has_focus=false" onmouseover="if (typeof chatns !== 'undefined') chatns.unread_msg_cur_user_clear();">
