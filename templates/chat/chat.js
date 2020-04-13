@@ -145,7 +145,7 @@ var chatns = {
 	    return;
 
 	if (chatns.cur_status == 'offline') {
-	    alert('{% trans 'You are offline' %}');
+	    alert("{% trans 'You are offline' %}");
 	    return;
 	}
 	if (typeof tuid == 'string' && tuid.includes('channel_')) {

@@ -1,0 +1,207 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2020-04-13 09:55+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#: models.py:16
+msgid "Private"
+msgstr "Privé"
+
+#: models.py:17
+msgid "Channel"
+msgstr "Canal"
+
+#: models.py:18
+msgid "Participants"
+msgstr "Participants"
+
+#: models.py:22
+msgid "Date"
+msgstr "Date"
+
+#: models.py:23
+msgid "Text"
+msgstr "Text"
+
+#: models.py:34
+msgid "Channels"
+msgstr "Canaux"
+
+#: models.py:36
+msgid "Chat status"
+msgstr "Status"
+
+#: templates/chat/channel_list.html:3
+msgid "Available Channels"
+msgstr "Canaux disponibles"
+
+#: templates/chat/channel_list.html:3
+msgid "click to join"
+msgstr "cliquer pour rejoindre"
+
+#: templates/chat/chat.html:13
+msgid "Add a channel"
+msgstr "Ajouter un canal"
+
+#: templates/chat/chat.html:17
+msgid "Create a new channel or add an existing one"
+msgstr "Créer un canal ou ajouter un canal existant"
+
+#: templates/chat/chat.html:19
+msgid "Create..."
+msgstr "Créer ..."
+
+#: templates/chat/chat.html:20
+msgid "Add"
+msgstr "Ajouter"
+
+#: templates/chat/chat.html:33 templates/chat/chat.html:168
+#: templates/chat/settings.html:2
+msgid "Settings"
+msgstr "Paramètres"
+
+#: templates/chat/chat.html:37
+msgid "Popup notifications"
+msgstr "Notifications pop-up"
+
+#: templates/chat/chat.html:40
+msgid "Enable notifications"
+msgstr "Activer les notifications"
+
+#: templates/chat/chat.html:41
+msgid ""
+"You will be notified on reception of private messages.<br>Note that you must "
+"enable browser notifications manually."
+msgstr ""
+"Vous serez notifié de la reception de messages privés.<br>Notez que vous "
+"devez activer les notifications de votre navigateur internet manuellement."
+
+#: templates/chat/chat.html:45
+msgid "Enable channel notifications"
+msgstr "Activer les notifications des canaux"
+
+#: templates/chat/chat.html:46
+msgid "You will be notified on reception of messages from public channels"
+msgstr ""
+"Vous serez notifié de la réception des messages provenant des canaux publics."
+
+#: templates/chat/chat.html:48
+msgid "Sound notifications"
+msgstr "Notifications sonores"
+
+#: templates/chat/chat.html:51
+msgid "Play sound"
+msgstr "Émettre un son"
+
+#: templates/chat/chat.html:52
+msgid "A sound will be played on reception of private messages"
+msgstr "Autoriser les notifications à émettre des sons"
+
+#: templates/chat/chat.html:56
+msgid "Play sound on channel activities"
+msgstr "Émettre un son sur réception de messages depuis les canaux publics."
+
+#: templates/chat/chat.html:57
+msgid "A sound will be played on reception of messages from public channels"
+msgstr ""
+"Autoriser les notifications à émettre des sons sur réception de messages "
+"depuis les canaux publics."
+
+#: templates/chat/chat.html:60
+msgid "Save"
+msgstr "Enregistrer"
+
+#: templates/chat/chat.html:79
+msgid "You have unread messages"
+msgstr "Vous avez de nouveaux messages"
+
+#: templates/chat/chat.html:86
+msgid "Away"
+msgstr "Absent"
+
+#: templates/chat/chat.html:90
+msgid "Busy"
+msgstr "Occupé"
+
+#: templates/chat/chat.html:94
+msgid "Online"
+msgstr "Connecté"
+
+#: templates/chat/chat.html:98
+msgid "Offline"
+msgstr "Déconnecté"
+
+#: templates/chat/chat.html:123
+msgid "General"
+msgstr "Général"
+
+#: templates/chat/chat.html:167
+msgid "Add channel"
+msgstr "Ajouter un canal"
+
+#: templates/chat/chat.html:178
+msgid "Write your message..."
+msgstr "Taper votre message..."
+
+#: templates/chat/chat_js.html:10
+msgid "Welcome "
+msgstr "Bienvenue"
+
+#: templates/chat/chat_js.html:84
+msgid "Message from"
+msgstr "Message de"
+
+#: templates/chat/chat_js.html:148
+msgid "You are offline"
+msgstr "Vous n'êtes pas connecté"
+
+#: templates/chat/chat_js.html:268
+msgid "Cannot save settings"
+msgstr "Impossible d'enregister les paramètres"
+
+#: templates/chat/chat_js.html:324
+msgid "Cannot add channel"
+msgstr "Impossible d'ajouter le canal"
+
+#: templates/chat/chat_js.html:345
+msgid "Cannot join channel"
+msgstr "Impossible de rejoindre le canal"
+
+#: templates/chat/chat_js.html:366
+msgid "Are you sure to remove the channel?"
+msgstr "Êtes-vous sûr de vouloir enlever ce canal ?"
+
+#: templates/chat/chat_js.html:386
+msgid "loading..."
+msgstr "chargement ..."
+
+#: templates/chat/chat_js.html:396
+msgid "cannot get channel list"
+msgstr "impossible de charger la liste des canaux"
+
+#: templates/chat/msg_box.html:17
+msgid "Loading"
+msgstr "Chargement"
+
+#: views.py:96
+msgid "Chat"
+msgstr "Tchat"
+
+#: views.py:177
+msgid "This channel already exists"
+msgstr "Ce canal existe déjà"

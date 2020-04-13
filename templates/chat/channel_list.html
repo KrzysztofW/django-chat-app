@@ -1,6 +1,6 @@
 {% load i18n %}<br>
 {% if other_channels.count %}
-<p class="card-text"><strong>{% trans 'Available Channels' %}</strong> (click to join):</p>
+<p class="card-text"><strong>{% trans 'Available Channels' %}</strong> ({% trans 'click to join' %}):</p>
 <table class="table">
   {% for c in other_channels %}
   <tr>
