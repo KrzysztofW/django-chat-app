@@ -6,7 +6,7 @@ from django import http
 from django.utils.html import quote, unquote
 from django.urls import reverse_lazy
 from django.conf import settings
-import os, pdb, mimetypes, subprocess, json, pdb
+import os, pdb, mimetypes, subprocess, json, pdb, logging
 from . import models as chat_models
 from users import models as user_models
 from django.contrib.auth import get_user_model
@@ -16,6 +16,7 @@ from . consumers import (get_connected_user_sync, get_connected_users_sync,
 from common.lgc_types import ChatWebSocketCmd, ChatStatus
 from django.http import JsonResponse
 
+log = logging.getLogger('chat')
 User = get_user_model()
 MSG_LIMIT = 10
 
@@ -145,7 +146,7 @@ def get_my_status(request):
     if user_status:
         status = user_status
     else:
-        status = ChatStatus.from_db_name(request.user.last_chat_status)
+        status = ChatStatus.from_db_name(request.user.chat_profile.last_chat_status)
 
     if not is_status_valid(status):
         status = ChatStatus.OFFLINE.value

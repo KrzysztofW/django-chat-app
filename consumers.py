@@ -1,7 +1,8 @@
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.exceptions import DenyConnection
 from django.utils import timezone
-import json, pdb
+from django.utils.html import unquote
+import json, pdb, logging
 from channels.layers import get_channel_layer
 from django.contrib.auth import get_user_model
 from channels.db import database_sync_to_async
@@ -13,6 +14,7 @@ from django.conf import settings
 from aredis import StrictRedis
 from redis import StrictRedis as sync_StrictRedis
 
+log = logging.getLogger('chat')
 redis_ns = ':chat'
 User = get_user_model()
 CONNECTED_USR_GRP = 'connected-users'
@@ -21,7 +23,11 @@ redis_instance = None
 def reset_redis():
     rinst = sync_StrictRedis(host=settings.REDIS_HOST,
                              port=settings.REDIS_PORT, db=0)
-    keys = rinst.keys('l_*:chat')
+    try:
+        keys = rinst.keys('l_*:chat')
+    except:
+        log.error("redis server down")
+        return
     p = rinst.pipeline()
 
     p.multi()
@@ -276,6 +282,7 @@ class ChatChannel(AsyncWebsocketConsumer):
         await self.accept()
         conn_user = await get_connected_user_list(user.id)
 
+        log.debug("%s connected", self.scope['user']);
         if len(conn_user) == 1 and chat_status != ChatStatus.OFFLINE.value:
             await self.handle_status_update(chat_status)
 
@@ -283,6 +290,7 @@ class ChatChannel(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps(event))
 
     async def disconnect(self, close_code):
+        log.debug("%s disconnected", self.scope['user']);
         user, chat_profile = await self.get_user_and_profile(self.scope['user'].id)
         if user is None or chat_profile is None:
             return
@@ -388,6 +396,8 @@ class ChatChannel(AsyncWebsocketConsumer):
             if user.id == self.scope['user'].id:
                 return
             msg_obj.to_user = user
+            log.debug("msg from %s to %s: `%s'", self.scope['user'], user,
+                      unquote(message))
             await self.msg_send_to(msg_obj, user)
             await self.msg_send_to(msg_obj, self.scope['user'])
         else:
@@ -396,6 +406,8 @@ class ChatChannel(AsyncWebsocketConsumer):
             except:
                 return
             msg_obj.channel = channel
+            log.debug("msg from %s to chann %s: `%s'", self.scope['user'], channel.name,
+                      unquote(message))
             await self.msg_send_to_users(msg_obj, channel.users)
 
         await self.save_object(msg_obj)
