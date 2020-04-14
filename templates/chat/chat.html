@@ -70,8 +70,8 @@
       <div class="wrap">
 
 	<audio id="sound">
-	  <source src="{% static 'chat/bell.ogg' %}" type="audio/ogg">
-	  <source src="{% static 'chat/bell.mp3' %}" type="audio/mpeg">
+	  <source src="{% static 'chat/bell2.ogg' %}" type="audio/ogg">
+	  <source src="{% static 'chat/bell2.mp3' %}" type="audio/mpeg">
 	</audio>
 	<img id="profile-img" src="{% url 'user-img' request.user.id %}" class="offline" alt="" />
 	<p id="user_name_{{ request.user.id }}">{{ request.user.first_name }} {{ request.user.last_name }}</p>
