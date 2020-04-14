@@ -4,6 +4,7 @@
 {% load i18n %}
 {% load custom_tags %}
 {% get_current_language as LANGUAGE_CODE %}
+{% load emoji_tags %}
 
 {% block content %}
 <div class="fullwindow invisible" id="channel_box_id">
@@ -186,6 +187,11 @@
 
 {% block javascript %}
  <script>
- {% include 'chat/chat_js.html' %}
-</script>
+   {% include 'chat/chat_js.html' %}
+ </script>
+ <script src="{% static 'emoji/js/emoji.js' %}"></script>
+ <script>
+   {% emoji_load %}
+ </script>
+
 {% endblock %}

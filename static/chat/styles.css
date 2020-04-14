@@ -729,3 +729,10 @@ p, ul {
     background-color:rgba(19,179,199,1);
     color:#ffffff;
 }
+
+.emoji {
+    float:none !important;
+    margin: 0 0 3px 0 !important;
+    width: 20px !important;
+    height: 20px !important;
+}

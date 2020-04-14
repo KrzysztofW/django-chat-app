@@ -403,6 +403,8 @@ var chatns = {
 
     chat_insert_msg:function(msg_class, user_img, user_name, message)
     {
+	message = Emoji.replace(message);
+
 	$('<li class="' + msg_class + '"><div><img src="' + user_img + '"><div class="msg_div"><b>' + user_name + '</b> <span class="msg_span">' + chatns.get_current_date() + '</span></div></div><br><p class="msg_p">' + message + '</p></li>').appendTo($('.messages ul'));
 	$('.message-input input').val(null);
 
