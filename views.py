@@ -91,6 +91,13 @@ def chat_view(request):
         except:
             u.chat_status = ChatStatus.OFFLINE.value
 
+        if not hasattr(request.user, 'chat_profile'):
+            profile = chat_models.UserProfile()
+            profile.user = request.user
+            profile.save()
+            request.user.chat_profile = profile
+            request.user.save()
+
     context = __get_msgs_view(request)
     context['users'] = users
     context['connected_users'] = get_connected_users_sync()
