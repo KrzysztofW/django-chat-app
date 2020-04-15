@@ -154,8 +154,6 @@ var chatns = {
 	    return;
 
 	var message = $(".message-input input").val();
-	if (message == '')
-	    message = $(".emoji-wysiwyg-editor").text();
 
 	message = $.trim(message);
 	message = chatns.convert_emoticons(message);
