@@ -127,6 +127,8 @@ async def get_connected_users_sync():
             continue
 
         s = await r.get(e)
+        if s is None:
+            continue
         res[int(i)] = s.decode('utf-8')
     return res
 

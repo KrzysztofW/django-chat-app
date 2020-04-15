@@ -10,9 +10,9 @@ import os, pdb, mimetypes, subprocess, json, pdb, logging
 from . import models as chat_models
 from users import models as user_models
 from django.contrib.auth import get_user_model
-from . consumers import (get_connected_user_sync, get_connected_users_sync,
-                         get_connected_user_list_sync, get_user_status_sync,
-                         is_status_valid)
+from .consumers import (get_connected_user_sync, get_connected_users_sync,
+                       get_connected_user_list_sync, get_user_status_sync,
+                       is_status_valid)
 from common.lgc_types import ChatWebSocketCmd, ChatStatus
 from django.http import JsonResponse
 
