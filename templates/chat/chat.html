@@ -176,22 +176,38 @@
     </span>
     <div class="message-input">
       <div class="wrap">
-	<input type="text" placeholder="{% trans 'Write your message...' %}" />
+	<input data-emojiable="true" type="text" placeholder="{% trans 'Write your message...' %}" />
 	<!--i class="fa fa-paperclip attachment" aria-hidden="true"></i-->
-	<button class="submit"><i class="fa fa-paper-plane" aria-hidden="true"></i></button>
+	<div class="send-button"><button class="submit"><i class="fa fa-paper-plane" aria-hidden="true"></i></div>
+	  <!--i class="emoji-picker-icon emoji-picker far fa-smile" aria-hidden="true"></i-->
+	</button>
       </div>
     </div>
   </div>
-</div>
-{% endblock %}
+  {% endblock %}
 
-{% block javascript %}
- <script>
-   {% include 'chat/chat_js.html' %}
- </script>
- <script src="{% static 'emoji/js/emoji.js' %}"></script>
- <script>
-   {% emoji_load %}
- </script>
+  {% block javascript %}
+  <script>
+    {% include 'chat/chat_js.html' %}
+  </script>
+  <script src="{% static 'emoji/js/emoji.js' %}"></script>
 
-{% endblock %}
+  <script>
+    {% emoji_load %}
+  </script>
+
+  <script src="{% static 'chat/emoji-lib/js/config.js' %}"></script>
+  <script src="{% static 'chat/emoji-lib/js/util.js' %}"></script>
+  <script src="{% static 'chat/emoji-lib/js/jquery.emojiarea.js' %}"></script>
+  <script src="{% static 'chat/emoji-lib/js/emoji-picker.js' %}"></script>
+  <script>
+    $(function() {
+	window.emojiPicker = new EmojiPicker({
+	    emojiable_selector: '[data-emojiable=true]',
+	    assetsPath: "{% static 'chat/emoji-lib/img/' %}",
+	    popupButtonClasses: 'far fa-smile'
+        });
+        window.emojiPicker.discover();
+    });
+  </script>
+  {% endblock %}

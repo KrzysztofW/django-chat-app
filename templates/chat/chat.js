@@ -133,15 +133,35 @@ var chatns = {
 	if (chatns.cur_tuid == 'general')
 	    chatns.general_msg_box_show();
     },
+    emoji1 : Array("smiley", "angel","confused","cry","disappointed","scream","sunglasses","grin","heart","stuck_out_tongue_closed_eyes","kiss","smile","expressionless","sunglasses","tongue","confused","wink"),
+    emoji2 : Array("-:\\)", "o:\\)","o.O",":'\\(",":\\(",":O","8\\)",":D","<3","\\^_\\^",":\\*",":\\)","-_-","8\\|",":p",":\\/",";\\)"),
 
-    new_message:function() {
+    convert_emoticons:function(msg)
+    {
+	for (i = 0; i < chatns.emoji1.length; i++) {
+	    var re = new RegExp(chatns.emoji2[i], 'gm');
+
+	    msg = msg.replace(re, ':' + chatns.emoji1[i] + ':');
+	}
+	return msg;
+    },
+    new_message:function()
+    {
 	var is_channel = false;
 	var tuid = chatns.cur_tuid;
 
-	message = $(".message-input input").val();
-	message = message.replace(/<[^>]*>?/gm, '');
+	if (chatns.cur_tuid == '')
+	    return;
 
-	if ($.trim(message) == '' || chatns.cur_tuid == '')
+	var message = $(".message-input input").val();
+	if (message == '')
+	    message = $(".emoji-wysiwyg-editor").text();
+
+	message = $.trim(message);
+	message = chatns.convert_emoticons(message);
+	message = message.replace(/<[^>]*>?/gm, '');
+	message = $.trim(message);
+	if (message == '')
 	    return;
 
 	if (chatns.cur_status == 'offline') {
@@ -159,6 +179,7 @@ var chatns = {
 	    'is_channel' : is_channel
 	}));
 	$('.message-input input').val(null);
+	$('.emoji-wysiwyg-editor').text('');
     },
 
     msg_pos : 0,

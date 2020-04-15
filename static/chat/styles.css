@@ -619,10 +619,16 @@ p, ul {
 }
 #frame .content .message-input {
   position: absolute;
-  bottom: 0;
   width: 100%;
   z-index: 99;
 }
+
+.send-button {
+    position: absolute;
+    right: 0;
+    top: -3px;
+}
+
 #frame .content .message-input .wrap {
   position: relative;
 }
