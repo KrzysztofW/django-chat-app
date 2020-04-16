@@ -557,6 +557,10 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 chatns.chat_socket.onopen = function(e) {
+    var conn_box = document.getElementById('connection_box_id');
+
+    conn_box.classList.add('invisible');
+
     $.ajax({
 	url: "{% url 'chat-get-my-status' %}",
 	data: {
@@ -571,7 +575,11 @@ chatns.chat_socket.onopen = function(e) {
 	}
     });
 }
+chatns.chat_socket.onclose = function(e) {
+    var conn_box = document.getElementById('connection_box_id');
 
+    conn_box.classList.remove('invisible');
+}
 chatns.chat_socket.onmessage = function(e) {
     var data = JSON.parse(e.data);
     var message = decodeURI(data['message']);

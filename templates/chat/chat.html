@@ -7,6 +7,14 @@
 {% load emoji_tags %}
 
 {% block content %}
+<div class="fullwindow" style="background-color: rgba(106,106,106, .3);" id="connection_box_id">
+  <div class="d-flex justify-content-center">
+    <div class="alert alert-success" role="alert">
+      {% trans 'Trying to connect, please wait...' %}
+    </div>
+  </div>
+</div>
+
 <div class="fullwindow invisible" id="channel_box_id">
   <div class="d-flex justify-content-center">
     <div class="card">
