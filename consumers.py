@@ -219,14 +219,17 @@ class ChatChannel(AsyncWebsocketConsumer):
 
     @sync_to_async
     def create_profile(self, user):
+        user = User.objects.get(id=user.id)
+
         if hasattr(user, 'chat_profile'):
-            return
+            return user
 
         profile = chat_models.UserProfile()
         profile.user = user
         profile.save()
         user.chat_profile = profile
         user.save()
+        return user
 
     async def handle_status_update(self, status):
         if not is_status_valid(status):
@@ -266,13 +269,12 @@ class ChatChannel(AsyncWebsocketConsumer):
 
     async def connect(self):
         user = self.scope['user']
-
         if not user.is_authenticated:
             raise DenyConnection('invalid user')
 
         chat_status = ChatStatus.OFFLINE.value
         chann, chat_status = await get_connected_user(user.id)
-        await self.create_profile(user)
+        user = await self.create_profile(user)
 
         if chat_status is None:
             chat_status = ChatStatus.from_db_name(user.chat_profile.last_chat_status)
@@ -284,7 +286,7 @@ class ChatChannel(AsyncWebsocketConsumer):
         await self.accept()
         conn_user = await get_connected_user_list(user.id)
 
-        log.debug("%s connected", self.scope['user']);
+        log.debug("%s connected", user);
         if len(conn_user) == 1 and chat_status != ChatStatus.OFFLINE.value:
             await self.handle_status_update(chat_status)
 
