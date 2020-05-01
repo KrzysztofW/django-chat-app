@@ -250,6 +250,12 @@ class ChatChannel(AsyncWebsocketConsumer):
         )
 
         if status == ChatStatus.OFFLINE.value:
+            user, chat_profile = await self.get_user_and_profile(self.scope['user'].id)
+            if user is None or chat_profile is None:
+                return
+            chat_profile.last_chat_status = ChatStatus.to_db_name(status)
+            chat_profile.offline_date = timezone.now()
+            await self.save_object(chat_profile)
             return
 
         uids_msgs = await self.get_uids_msgs(user)
@@ -313,6 +319,10 @@ class ChatChannel(AsyncWebsocketConsumer):
 
         if cur_status is None:
             """the user is not authenticated"""
+            return
+
+        if cur_status == ChatStatus.OFFLINE.value:
+            """the user is already offline"""
             return
 
         chat_profile.last_chat_status = ChatStatus.to_db_name(cur_status)

@@ -20,7 +20,7 @@ log = logging.getLogger('chat')
 User = get_user_model()
 MSG_LIMIT = 10
 
-def get_msgs(request):
+def get_msgs(request, until):
     uid = request.GET.get('uid')
     pos = request.GET.get('pos', '0')
     is_channel = request.GET.get('is_channel')
@@ -46,6 +46,9 @@ def get_msgs(request):
             return None, None, None
         msgs = chat_models.Message.objects.filter(channel__id=uid).order_by('date')
 
+    if until is not None:
+        msgs = msgs.filter(date__lte=until)
+
     total = len(msgs)
     pos_end = max(total - pos, 0)
     pos = max(pos_end - MSG_LIMIT, 0)
@@ -54,7 +57,12 @@ def get_msgs(request):
 
 def __get_msgs_view(request):
     chann, status = get_connected_user_sync(request.user.id)
-    from_user, channel, msgs = get_msgs(request)
+
+    if status == ChatStatus.OFFLINE.value:
+        until = request.user.chat_profile.offline_date
+    else:
+        until = None
+    from_user, channel, msgs = get_msgs(request, until)
 
     if msgs and len(msgs) == 0:
         return None

@@ -184,9 +184,6 @@ var chatns = {
 
     set_active:function(elem, uid, is_channel)
     {
-	if (elem.classList.contains('active'))
-	    return;
-
 	$('li').each(function(i) {
 	    $(this).removeClass('active');
 	});
@@ -472,6 +469,10 @@ var chatns = {
 	if (chatns.cur_status == status)
 	    return;
 
+	if (chatns.cur_status == 'offline' && status != 'offline') {
+	    chatns.set_active(document.getElementById('contact_id_general'),
+			      'general', false);
+	}
 	chatns.cur_status = status;
 
 	chatns.chat_socket.send(JSON.stringify({
